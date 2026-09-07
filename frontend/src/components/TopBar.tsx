@@ -33,7 +33,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           <div className="brand-dot" />
           <span className="brand-title">DOMUS</span>
         </div>
-        <span className="brand-divider">—</span>
+        <span className="brand-divider">|</span>
         <span className="brand-sub">Smart Home</span>
       </div>
 

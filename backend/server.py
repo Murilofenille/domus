@@ -21,7 +21,7 @@ if not ACCESS_ID or not ACCESS_SECRET:
 openapi = TuyaOpenAPI(API_ENDPOINT, ACCESS_ID, ACCESS_SECRET)
 openapi.connect()
 
-app = FastAPI(title="DOMUS — Smart Home", version="3.2.0")
+app = FastAPI(title="DOMUS | Smart Home", version="3.2.0")
 
 app.add_middleware(
     CORSMiddleware,

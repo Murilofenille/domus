@@ -16,7 +16,7 @@ except ImportError:
 
 load_dotenv()
 
-app = FastAPI(title="DOMUS — Smart Home", version="3.2.0")
+app = FastAPI(title="DOMUS | Smart Home", version="3.2.0")
 
 app.add_middleware(
     CORSMiddleware,

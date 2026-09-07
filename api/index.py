@@ -16,7 +16,7 @@ except ImportError:
 
 load_dotenv()
 
-app = FastAPI(title="DOMUS | Smart Home", version="3.2.0")
+app = FastAPI(title="DOMUS | Smart Home", version="3.2.0", redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,6 +25,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def vercel_route_fix_middleware(request, call_next):
+    # Restaura a rota original caso o Vercel tenha reescrito o path de destino
+    matched = request.headers.get("x-matched-path") or request.headers.get("x-original-uri")
+    if matched:
+        # Se for /api/status ou /status, ajusta no escopo ASGI
+        clean_path = matched.split("?")[0]
+        if clean_path and clean_path not in ["/api/index.py", "/api"]:
+            request.scope["path"] = clean_path
+    return await call_next(request)
 
 DEVICES = {
     "quarto_murilo": {"name": "Quarto Murilo", "id": "7173100234ab95105538"},
@@ -209,11 +220,15 @@ def save_stored_config(data: Dict[str, Any]) -> bool:
             return False
     return True
 
+@app.get("/")
+@app.get("/api")
 @app.get("/api/health")
+@app.get("/health")
 async def health():
-    return {"status": "ok", "mode": "serverless", "time": time.time()}
+    return {"status": "ok", "app": "DOMUS | Smart Home", "mode": "serverless", "time": time.time()}
 
 @app.get("/api/status")
+@app.get("/status")
 async def get_status(device_id: Optional[str] = None):
     global memory_devices_cache, last_cache_timestamp
     now = time.time()
@@ -235,6 +250,12 @@ async def get_status(device_id: Optional[str] = None):
                 last_cache_timestamp = now
         except Exception as e:
             print(f"Erro ao buscar status na Tuya: {e}")
+            return {
+                "online": False,
+                "devices": dict(memory_devices_cache),
+                "error": str(e),
+                "updated_at": now
+            }
 
     if device_id:
         cached = memory_devices_cache.get(device_id)
@@ -249,6 +270,7 @@ async def get_status(device_id: Optional[str] = None):
     }
 
 @app.post("/api/command")
+@app.post("/command")
 async def send_command(req: CommandRequest):
     payload = {
         "commands": [
@@ -279,6 +301,7 @@ async def send_command(req: CommandRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/config")
+@app.get("/config")
 async def get_config():
     config = load_stored_config()
     device_rooms = config.get("device_rooms", DEFAULT_DEVICE_ROOMS)
@@ -311,6 +334,7 @@ async def get_config():
     }
 
 @app.post("/api/config")
+@app.post("/config")
 async def save_config(payload: DeviceConfigPayload):
     data_to_save = {
         "device_rooms": payload.device_rooms,

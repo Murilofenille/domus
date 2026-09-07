@@ -1,0 +1,86 @@
+{
+  "device_rooms": {
+    "quarto_murilo": "bedroom-01",
+    "escritorio_murilo": "bedroom-01",
+    "sala": "living",
+    "cozinha": "gourmet",
+    "lavanderia": "laundry",
+    "quarto_marina": "bedroom-02",
+    "tomada_marina": "bedroom-02",
+    "quarto_alfeo": "suite",
+    "tomada_alfeo": "suite",
+    "banheiro_alfeo": "bath-suite",
+    "banheiro_social": "bath-social",
+    "suite_master": "master",
+    "banheiro_master": "bath-master",
+    "closet": "closet",
+    "led_closet": "bedroom-01",
+    "corredor_principal": "hall",
+    "corredor_suite": "rear-hall",
+    "corredor_claraboia": "skylight-east"
+  },
+  "channel_names": {
+    "sala": {
+      "switch_1": "Luz Sala",
+      "switch_2": "Mesa",
+      "switch_3": "Mesa de Jantar",
+      "switch_4": "",
+      "switch_5": "Garagem",
+      "switch_6": "Sanca de Gesso",
+      "switch_7": "Luz Hall Entrada",
+      "switch_8": "Spots Parede"
+    },
+    "quarto_murilo": {
+      "switch_1": "Luz Central Quarto",
+      "switch_2": "Spots Cabeceira",
+      "switch_3": "Fita LED Sanca"
+    },
+    "escritorio_murilo": {
+      "switch_1": "Luz Mesa Trabalho",
+      "switch_2": "Tomada Monitor/PC"
+    },
+    "cozinha": {
+      "switch_1": "",
+      "switch_2": "Led e Sanca",
+      "switch_3": "Cozinha Principal"
+    },
+    "quarto_marina": {
+      "switch_1": "Luz Central",
+      "switch_2": "Spots Cama"
+    },
+    "closet": {
+      "switch_1": "Luz Geral Closet",
+      "switch_2": "Spots Espelho"
+    },
+    "led_closet": {
+      "switch_1": "Barra LED Guarda-Roupa"
+    },
+    "lavanderia": {
+      "switch_1": "Luz Principal Lavanderia"
+    },
+    "corredor_principal": {
+      "switch_1": "Luz Corredor Central"
+    },
+    "corredor_suite": {
+      "switch_1": "Luz Corredor Suíte Master"
+    }
+  },
+  "hidden_channels": {
+    "led_closet": [
+      "switch_inching",
+      "switch_type"
+    ],
+    "sala": [
+      "switch_4"
+    ],
+    "cozinha": [
+      "switch_1"
+    ]
+  },
+  "channel_rooms": {
+    "sala": {
+      "switch_5": "garage"
+    }
+  },
+  "updated_at": 1788821763.3299334
+}

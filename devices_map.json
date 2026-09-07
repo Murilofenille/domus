@@ -1,0 +1,227 @@
+{
+  "Cozinha": {
+    "device_id": "eb0253512b47c620f1b3tg",
+    "online": true,
+    "dps": {
+      "switch_1": false,
+      "switch_2": true,
+      "switch_3": true,
+      "countdown_1": 0,
+      "countdown_2": 0,
+      "countdown_3": 0,
+      "relay_status": "2",
+      "random_time": "",
+      "cycle_time": "",
+      "remote_add": "",
+      "remote_list": "AA=="
+    }
+  },
+  "Quarto Marina": {
+    "device_id": "0076231634ab9510916c",
+    "online": true,
+    "dps": {
+      "switch_1": true,
+      "switch_2": false,
+      "countdown_1": 0,
+      "countdown_2": 0
+    }
+  },
+  "Led Guarda Roupa": {
+    "device_id": "eb3a48b14417d7cd46g13x",
+    "online": true,
+    "dps": {
+      "switch_1": true,
+      "countdown_1": 0,
+      "test_bit": 0,
+      "fault": 0,
+      "relay_status": "2",
+      "random_time": "",
+      "cycle_time": "",
+      "switch_inching": "AAAC",
+      "switch_type": "flip"
+    }
+  },
+  "Interruptor Escritório Murilo": {
+    "device_id": "eba0bc9062cb902519bv8a",
+    "online": true,
+    "dps": {
+      "switch_1": false,
+      "switch_2": false,
+      "switch_3": false,
+      "countdown_1": 0,
+      "countdown_2": 0,
+      "countdown_3": 0,
+      "relay_status": "last",
+      "switch_backlight": false,
+      "cycle_time": "",
+      "random_time": "",
+      "switch_inching": ""
+    }
+  },
+  "Banheiro Social": {
+    "device_id": "ebea951fa1e1900c21l4op",
+    "online": true,
+    "dps": {
+      "switch_1": true,
+      "switch_2": true,
+      "switch_3": true,
+      "countdown_1": 0,
+      "countdown_2": 0,
+      "countdown_3": 0,
+      "relay_status": "last",
+      "switch_backlight": true,
+      "cycle_time": "",
+      "random_time": "",
+      "switch_inching": ""
+    }
+  },
+  "Closet": {
+    "device_id": "0076231634ab951d1684",
+    "online": true,
+    "dps": {
+      "switch_1": false,
+      "switch_2": false,
+      "countdown_1": 0,
+      "countdown_2": 0
+    }
+  },
+  "Lavanderia": {
+    "device_id": "eb06af9cdbe3a70513uvmv",
+    "online": true,
+    "dps": {
+      "switch_1": false,
+      "countdown_1": 0,
+      "test_bit": 0,
+      "fault": 0,
+      "relay_status": "2",
+      "random_time": "",
+      "cycle_time": "",
+      "switch_inching": "AAAC",
+      "switch_type": "sync"
+    }
+  },
+  "Interruptor Sala": {
+    "device_id": "eb4363d2fae69d1b3ak5lg",
+    "online": true,
+    "dps": {
+      "switch_1": false,
+      "switch_2": false,
+      "switch_3": false,
+      "switch_4": false,
+      "switch_5": false,
+      "switch_6": false,
+      "relay_status": "last",
+      "light_mode": "relay",
+      "switch_8": false,
+      "switch_7": false
+    }
+  },
+  "Corredor Suíte": {
+    "device_id": "eb7ec51b1a94acaf7ffjqx",
+    "online": true,
+    "dps": {
+      "switch_1": false,
+      "switch_2": false,
+      "countdown_1": 0,
+      "countdown_2": 0,
+      "relay_status": "last",
+      "cycle_time": "",
+      "random_time": "",
+      "switch_inching": ""
+    }
+  },
+  "Quarto Murilo": {
+    "device_id": "7173100234ab95105538",
+    "online": true,
+    "dps": {
+      "switch_1": false,
+      "switch_2": false,
+      "switch_3": true,
+      "countdown_1": 0,
+      "countdown_2": 0,
+      "countdown_3": 0
+    }
+  },
+  "Corredor Principal": {
+    "device_id": "7753207334ab951d4101",
+    "online": true,
+    "dps": {
+      "switch_1": false,
+      "switch_2": false,
+      "switch_3": true,
+      "countdown_1": 0,
+      "countdown_2": 0,
+      "countdown_3": 0
+    }
+  },
+  "Quarto Alfeo": {
+    "device_id": "0076231634ab9510ba04",
+    "online": true,
+    "dps": {
+      "switch_1": false,
+      "switch_2": false,
+      "countdown_1": 0,
+      "countdown_2": 0
+    }
+  },
+  "Suíte Master": {
+    "device_id": "eb7b83c1dcb03d24231db5",
+    "online": true,
+    "dps": {
+      "switch_1": true,
+      "switch_2": false,
+      "switch_3": false,
+      "switch_4": false,
+      "countdown_1": 0,
+      "countdown_2": 0,
+      "countdown_3": 0,
+      "countdown_4": 0,
+      "relay_status": "last",
+      "switch_backlight": true,
+      "cycle_time": "",
+      "switch_inching": ""
+    }
+  },
+  "Banheiro Master": {
+    "device_id": "eb359369a7c7cd5cacz5cb",
+    "online": true,
+    "dps": {
+      "switch_1": false,
+      "switch_2": false,
+      "countdown_1": 0,
+      "countdown_2": 0,
+      "relay_status": "power_off",
+      "cycle_time": "",
+      "random_time": "",
+      "switch_inching": ""
+    }
+  },
+  "Corredor Claraboia": {
+    "device_id": "ebbfb1b732983a19det4ng",
+    "online": true,
+    "dps": {
+      "switch_1": false,
+      "switch_2": false,
+      "countdown_1": 0,
+      "countdown_2": 0,
+      "relay_status": "last",
+      "cycle_time": "",
+      "random_time": "",
+      "switch_inching": ""
+    }
+  },
+  "Banheiro Alfeo": {
+    "device_id": "eb4bb2c6b85ca80c08xen2",
+    "online": true,
+    "dps": {
+      "switch_1": false,
+      "switch_2": false,
+      "countdown_1": 0,
+      "countdown_2": 0,
+      "relay_status": "last",
+      "cycle_time": "",
+      "random_time": "",
+      "switch_inching": ""
+    }
+  }
+}

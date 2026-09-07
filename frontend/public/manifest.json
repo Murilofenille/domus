@@ -1,0 +1,16 @@
+{
+  "short_name": "DOMUS",
+  "name": "DOMUS — Smart Home",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#EEF2F6",
+  "theme_color": "#0F172A",
+  "display": "standalone",
+  "orientation": "any"
+}

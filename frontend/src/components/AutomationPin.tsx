@@ -21,11 +21,11 @@ export const AutomationPin: React.FC<AutomationPinProps> = ({
   const groupRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
 
-  // Animação sutil de flutuação
+  // Animação sutil de flutuação apenas quando visível/interativo
   useFrame((state) => {
     if (groupRef.current) {
       const t = state.clock.getElapsedTime();
-      groupRef.current.position.y = position[1] + Math.sin(t * 2 + position[0]) * 0.04;
+      groupRef.current.position.y = position[1] + Math.sin(t * 2 + position[0]) * 0.03;
     }
   });
 
@@ -52,14 +52,13 @@ export const AutomationPin: React.FC<AutomationPinProps> = ({
         document.body.style.cursor = 'auto';
       }}
     >
-      {/* Luz realística emitida quando o switch está ligado */}
+      {/* Luz realística emitida quando o switch está ligado (sem castShadow para máxima taxa de FPS em tablets) */}
       {isOn && (
         <pointLight
           color="#FFE8B2"
           intensity={2.8}
-          distance={5.5}
+          distance={5.0}
           decay={2}
-          castShadow
           position={[0, -0.2, 0]}
         />
       )}
@@ -67,7 +66,7 @@ export const AutomationPin: React.FC<AutomationPinProps> = ({
       {/* Halo de luz externo suave */}
       {isOn && (
         <mesh position={[0, 0, 0]}>
-          <sphereGeometry args={[0.26, 16, 16]} />
+          <sphereGeometry args={[0.26, 12, 12]} />
           <meshBasicMaterial
             color="#FFC300"
             transparent
@@ -79,7 +78,7 @@ export const AutomationPin: React.FC<AutomationPinProps> = ({
 
       {/* Esfera do Pin (Lâmpada) */}
       <mesh castShadow scale={hovered ? 1.15 : 1.0}>
-        <sphereGeometry args={[0.18, 24, 24]} />
+        <sphereGeometry args={[0.18, 16, 16]} />
         <meshStandardMaterial
           color={pinColor}
           emissive={emissiveColor}
@@ -91,7 +90,7 @@ export const AutomationPin: React.FC<AutomationPinProps> = ({
 
       {/* Anel indicador estilizado */}
       <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.22, 0.02, 16, 32]} />
+        <torusGeometry args={[0.22, 0.02, 10, 20]} />
         <meshStandardMaterial
           color={isOn ? '#FFFFFF' : '#CBD5E1'}
           emissive={isOn ? '#FFFFFF' : '#000000'}
@@ -101,12 +100,12 @@ export const AutomationPin: React.FC<AutomationPinProps> = ({
 
       {/* Cone ponteiro para baixo */}
       <mesh position={[0, -0.28, 0]} rotation={[Math.PI, 0, 0]}>
-        <coneGeometry args={[0.10, 0.28, 20]} />
+        <coneGeometry args={[0.10, 0.28, 14]} />
         <meshStandardMaterial color="#FFFFFF" roughness={0.4} />
       </mesh>
 
-      {/* Tooltip HTML 3D Flutuante moderno */}
-      {(hovered || isRealDevice) && (
+      {/* Tooltip HTML 3D Flutuante moderno - Exibido apenas em hover para poupar GPU/DOM no tablet */}
+      {hovered && (
         <Html
           position={[0, 0.38, 0]}
           center
@@ -114,7 +113,7 @@ export const AutomationPin: React.FC<AutomationPinProps> = ({
           style={{ pointerEvents: 'none' }}
         >
           <div style={{
-            background: isOn ? 'rgba(15, 23, 42, 0.92)' : 'rgba(30, 41, 59, 0.85)',
+            background: isOn ? 'rgba(15, 23, 42, 0.95)' : 'rgba(30, 41, 59, 0.95)',
             color: '#FFFFFF',
             padding: '4px 10px',
             borderRadius: '20px',
@@ -127,8 +126,7 @@ export const AutomationPin: React.FC<AutomationPinProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            backdropFilter: 'blur(8px)',
-            transition: 'all 0.2s ease'
+            transition: 'transform 0.15s ease'
           }}>
             <span style={{
               width: '7px',
@@ -154,3 +152,4 @@ export const AutomationPin: React.FC<AutomationPinProps> = ({
     </group>
   );
 };
+

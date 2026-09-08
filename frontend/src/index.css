@@ -32,26 +32,25 @@ html, body, #root {
   width: 100%;
   height: 100%;
   z-index: 1;
+  touch-action: none; /* Impede conflito de gestos do navegador com a rotação 3D */
 }
 
 /* Topbar HUD */
 .topbar-container {
   position: absolute;
-  top: 16px;
-  left: 20px;
-  right: 20px;
-  height: 60px;
+  top: max(14px, env(safe-area-inset-top, 14px));
+  left: max(16px, env(safe-area-inset-left, 16px));
+  right: max(16px, env(safe-area-inset-right, 16px));
+  height: 58px;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
 }
 
 .topbar-left {
@@ -184,23 +183,23 @@ html, body, #root {
 /* Painel Lateral HUD */
 .side-panel-container {
   position: absolute;
-  top: 92px;
-  right: 20px;
-  width: 340px;
-  max-height: calc(100vh - 115px);
+  top: calc(max(14px, env(safe-area-inset-top, 14px)) + 68px);
+  right: max(16px, env(safe-area-inset-right, 16px));
+  width: 330px;
+  max-height: calc(100vh - max(14px, env(safe-area-inset-top, 14px)) - max(16px, env(safe-area-inset-bottom, 16px)) - 82px);
   z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 22px;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  gap: 15px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.95);
-  border-radius: 24px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06);
+  border-radius: 22px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.06);
   overflow-y: auto;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .panel-header {
@@ -1060,6 +1059,63 @@ html, body, #root {
 
   .channel-item-row {
     flex-wrap: wrap;
+  }
+}
+
+/* --- OTIMIZAÇÕES PARA TABLET E MODO HORIZONTAL (LANDSCAPE) --- */
+@media (orientation: landscape) and (max-height: 850px) {
+  .topbar-container {
+    height: 48px;
+    padding: 0 14px;
+    top: max(8px, env(safe-area-inset-top, 8px));
+    left: max(12px, env(safe-area-inset-left, 12px));
+    right: max(12px, env(safe-area-inset-right, 12px));
+    border-radius: 14px;
+  }
+
+  .brand-title {
+    font-size: 14px;
+  }
+
+  .brand-sub {
+    font-size: 11px;
+  }
+
+  .status-pill {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .side-panel-container {
+    top: calc(max(8px, env(safe-area-inset-top, 8px)) + 56px);
+    right: max(12px, env(safe-area-inset-right, 12px));
+    width: 300px;
+    padding: 14px;
+    gap: 10px;
+    border-radius: 18px;
+    max-height: calc(100vh - max(8px, env(safe-area-inset-top, 8px)) - max(10px, env(safe-area-inset-bottom, 10px)) - 64px);
+  }
+
+  .panel-title {
+    font-size: 16px;
+  }
+
+  .settings-modal-card {
+    max-height: 94vh;
+    border-radius: 18px;
+  }
+
+  .settings-modal-header {
+    padding: 14px 20px;
+  }
+
+  .settings-toolbar {
+    padding: 8px 20px;
+  }
+
+  .settings-devices-list {
+    padding: 12px 20px;
+    max-height: calc(94vh - 160px);
   }
 }
 

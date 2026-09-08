@@ -97,10 +97,14 @@ export function App() {
     }
   }, [lightStates]);
 
-  // Polling periódico (a cada 3.5 segundos)
+  // Polling periódico (a cada 3.5 segundos, pausando se a tela do tablet apagar)
   useEffect(() => {
     syncWithTuya();
-    const interval = setInterval(syncWithTuya, 3500);
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        syncWithTuya();
+      }
+    }, 3500);
     return () => clearInterval(interval);
   }, [syncWithTuya]);
 
@@ -291,10 +295,18 @@ export function App() {
         </button>
       </div>
 
-      {/* Canvas 3D Isométrico */}
+      {/* Canvas 3D Isométrico Otimizado para Tablets */}
       <div className="canvas-wrapper">
         <Canvas
           shadows
+          dpr={[1, 1.5]}
+          gl={{
+            powerPreference: 'high-performance',
+            antialias: true,
+            alpha: false,
+            stencil: false,
+            depth: true
+          }}
           camera={{
             position: [12, 24, 25],
             fov: 34,
@@ -305,13 +317,13 @@ export function App() {
           <color attach="background" args={["#EEF2F6"]} />
           <ambientLight intensity={1.5} />
 
-          {/* Sol / Luz Direcional com sombras arquitetônicas */}
+          {/* Sol / Luz Direcional com sombras arquitetônicas suaves (1024x1024 para alta fluidez) */}
           <directionalLight
             position={[-15, 30, 20]}
             intensity={2.2}
             castShadow
-            shadow-mapSize-width={2048}
-            shadow-mapSize-height={2048}
+            shadow-mapSize-width={1024}
+            shadow-mapSize-height={1024}
             shadow-bias={-0.0001}
           />
           <directionalLight position={[15, 15, -20]} intensity={0.8} />
@@ -324,10 +336,15 @@ export function App() {
             selectedRoomId={selectedRoom?.id}
           />
 
-          {/* Controles de Câmera */}
+          {/* Controles de Câmera com Amortecimento Inercial Fluido (Damping) */}
           <OrbitControls
             enablePan={true}
             enableZoom={true}
+            enableDamping={true}
+            dampingFactor={0.07}
+            rotateSpeed={0.8}
+            zoomSpeed={0.9}
+            panSpeed={0.9}
             minDistance={8}
             maxDistance={80}
             maxPolarAngle={Math.PI / 2.1}

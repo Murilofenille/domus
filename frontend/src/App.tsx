@@ -8,6 +8,7 @@ import { SidePanel, type RoomDeviceItem } from './components/SidePanel';
 import { SettingsModal, type DeviceInfoItem } from './components/SettingsModal';
 import { SpotifyPlayer } from './components/SpotifyPlayer';
 import { ReviewModal } from './components/ReviewModal';
+import { WifiModal } from './components/WifiModal';
 import { LeisureDashboard } from './components/LeisureDashboard';
 import { rooms, automationPins } from './houseLayout';
 import { DEFAULT_DEVICES_LIST, DEFAULT_DEVICE_ROOMS, DEFAULT_CHANNEL_NAMES } from './defaultDevices';
@@ -82,6 +83,7 @@ export function App() {
   // Estados do Gerenciador de Dispositivos e Canais (com inicialização imediata e fallback resiliente)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [isWifiOpen, setIsWifiOpen] = useState(false);
 
   const [devicesList, setDevicesList] = useState<DeviceInfoItem[]>(() => {
     try {
@@ -510,6 +512,7 @@ export function App() {
         <LeisureDashboard
           onOpenFloorplan={() => setActiveTab('floorplan')}
           onOpenReview={() => setIsReviewOpen(true)}
+          onOpenWifi={() => setIsWifiOpen(true)}
           onToggleAllLights={handleToggleAll}
           activeLightsCount={activeLightsCount}
           totalLightsCount={totalLightsCount}
@@ -529,6 +532,7 @@ export function App() {
             onToggleAll={handleToggleAll}
             onOpenSettings={() => setIsSettingsOpen(true)}
             onOpenReview={() => setIsReviewOpen(true)}
+            onOpenWifi={() => setIsWifiOpen(true)}
             onNavigateHome={() => setActiveTab('dashboard')}
           />
 
@@ -649,6 +653,12 @@ export function App() {
       <ReviewModal
         isOpen={isReviewOpen}
         onClose={() => setIsReviewOpen(false)}
+      />
+
+      {/* Modal de Conexão Wi-Fi */}
+      <WifiModal
+        isOpen={isWifiOpen}
+        onClose={() => setIsWifiOpen(false)}
       />
     </div>
   );

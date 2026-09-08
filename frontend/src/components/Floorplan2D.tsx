@@ -19,8 +19,8 @@ export const Floorplan2D: React.FC<Floorplan2DProps> = ({
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  // Modo claro é o principal e padrão
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  // Modo escuro é o padrão para estética premium em tablets
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   // Modo horizontal é o padrão para telas de tablet widescreen
   const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
   const [hoveredRoomId, setHoveredRoomId] = useState<string | null>(null);

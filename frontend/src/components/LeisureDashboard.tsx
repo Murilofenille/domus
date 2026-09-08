@@ -16,7 +16,9 @@ import {
   Lightbulb,
   ListMusic,
   RotateCw,
-  LogOut
+  LogOut,
+  Users,
+  Wifi
 } from 'lucide-react';
 import {
   isSpotifyConnected,
@@ -38,6 +40,7 @@ import {
   type SpotifyPlaylist
 } from '../services/spotify';
 import { fetchWeatherData, type WeatherData } from '../services/weather';
+import { SpotifyJamModal } from './SpotifyJamModal';
 
 export interface QuickDeviceSwitch {
   id: string;
@@ -49,6 +52,7 @@ export interface QuickDeviceSwitch {
 interface LeisureDashboardProps {
   onOpenFloorplan: () => void;
   onOpenReview: () => void;
+  onOpenWifi?: () => void;
   onToggleAllLights?: () => void;
   activeLightsCount?: number;
   totalLightsCount?: number;
@@ -61,6 +65,7 @@ interface LeisureDashboardProps {
 export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
   onOpenFloorplan,
   onOpenReview,
+  onOpenWifi,
   onToggleAllLights,
   activeLightsCount = 0,
   poolTemperature = 32,
@@ -73,6 +78,7 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
   const [isBusy, setIsBusy] = useState<boolean>(false);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [seekPosMs, setSeekPosMs] = useState<number | null>(null);
+  const [isJamOpen, setIsJamOpen] = useState<boolean>(false);
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
   const [isDeviceMenuOpen, setIsDeviceMenuOpen] = useState<boolean>(false);
   const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
@@ -358,6 +364,16 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
                     <Music size={64} className="text-gray-500" />
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setIsJamOpen(true)}
+                  className="leisure-album-jam-pill"
+                  title="Fila da Festa (Spotify Jam - QR Code)"
+                >
+                  <span className="jam-live-pulse" />
+                  <Users size={13} />
+                  <span>Fila Jam</span>
+                </button>
               </div>
 
               <div className="leisure-track-info">
@@ -396,6 +412,15 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
                   title="Abrir Playlists"
                 >
                   <ListMusic size={20} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsJamOpen(true)}
+                  className="leisure-control-btn-subtle"
+                  title="Fila da Festa (Spotify Jam)"
+                >
+                  <Users size={20} className="text-emerald-400" />
                 </button>
 
                 <button
@@ -465,6 +490,16 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
                 >
                   <ListMusic size={18} />
                   <span>Escolher Playlist</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsJamOpen(true)}
+                  className="leisure-idle-subtle-btn jam-highlight"
+                  title="Fila da Festa (Spotify Jam)"
+                >
+                  <Users size={18} className="text-emerald-400" />
+                  <span>Fila Jam</span>
                 </button>
 
                 <button
@@ -693,8 +728,19 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
           </span>
         </div>
 
-        {/* Lado Direito: Avaliar + Hora */}
+        {/* Lado Direito: Wi-Fi + Avaliar + Hora */}
         <div className="leisure-bottom-actions">
+          {onOpenWifi && (
+            <button
+              onClick={onOpenWifi}
+              className="leisure-wifi-btn"
+              title="Conectar ao Wi-Fi da Área de Lazer"
+            >
+              <Wifi size={18} className="text-blue-400" />
+              <span>Wi-Fi</span>
+            </button>
+          )}
+
           <button
             onClick={onOpenReview}
             className="leisure-review-btn"
@@ -709,6 +755,9 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal do Spotify Jam (Fila da Festa) */}
+      <SpotifyJamModal isOpen={isJamOpen} onClose={() => setIsJamOpen(false)} />
     </div>
   );
 };

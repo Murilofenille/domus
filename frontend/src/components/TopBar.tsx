@@ -10,6 +10,7 @@ interface TopBarProps {
   onToggleAll: () => void;
   onOpenSettings: () => void;
   onOpenReview?: () => void;
+  onOpenWifi?: () => void;
   onNavigateHome?: () => void;
 }
 
@@ -22,6 +23,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleAll,
   onOpenSettings,
   onOpenReview,
+  onOpenWifi,
   onNavigateHome
 }) => {
   const [time, setTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
@@ -118,6 +120,17 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Ações Rápidas & Relógio */}
       <div className="topbar-right">
+        {onOpenWifi && (
+          <button
+            onClick={onOpenWifi}
+            className="topbar-wifi-btn"
+            title="Conectar ao Wi-Fi da Área de Lazer"
+          >
+            <Wifi size={14} className="text-blue-400" />
+            <span>Wi-Fi</span>
+          </button>
+        )}
+
         {onOpenReview && (
           <button
             onClick={onOpenReview}

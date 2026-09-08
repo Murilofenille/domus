@@ -108,6 +108,54 @@ function worldUV(geo: THREE.BufferGeometry, scale: number) {
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
 }
 
+// Textura procedural de facho de luz (cone duplo para cima e para baixo) para arandelas
+function createArandelaBeamTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+  ctx.clearRect(0, 0, 256, 512);
+
+  const cx = 128;
+  const cy = 256;
+
+  // Cone superior (facho de luz para cima)
+  const gradUp = ctx.createRadialGradient(cx, cy, 4, cx, cy - 60, 190);
+  gradUp.addColorStop(0, 'rgba(255, 205, 120, 0.95)');
+  gradUp.addColorStop(0.2, 'rgba(255, 170, 70, 0.70)');
+  gradUp.addColorStop(0.55, 'rgba(255, 130, 30, 0.28)');
+  gradUp.addColorStop(1, 'rgba(255, 100, 10, 0.0)');
+
+  ctx.beginPath();
+  ctx.moveTo(cx - 10, cy);
+  ctx.lineTo(cx + 10, cy);
+  ctx.lineTo(246, 12);
+  ctx.lineTo(10, 12);
+  ctx.closePath();
+  ctx.fillStyle = gradUp;
+  ctx.fill();
+
+  // Cone inferior (facho de luz para baixo)
+  const gradDown = ctx.createRadialGradient(cx, cy, 4, cx, cy + 60, 210);
+  gradDown.addColorStop(0, 'rgba(255, 205, 120, 0.95)');
+  gradDown.addColorStop(0.2, 'rgba(255, 170, 70, 0.70)');
+  gradDown.addColorStop(0.55, 'rgba(255, 130, 30, 0.28)');
+  gradDown.addColorStop(1, 'rgba(255, 100, 10, 0.0)');
+
+  ctx.beginPath();
+  ctx.moveTo(cx - 10, cy);
+  ctx.lineTo(cx + 10, cy);
+  ctx.lineTo(248, 500);
+  ctx.lineTo(8, 500);
+  ctx.closePath();
+  ctx.fillStyle = gradDown;
+  ctx.fill();
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 export interface FinishSceneResult {
   update: (t: number) => void;
   setNight: (on: boolean) => void;
@@ -166,6 +214,16 @@ export function finishScene(
   const byId = new Map(meshes.map(m => [m.userData.id, m]));
 
   const arandelaLights: THREE.PointLight[] = [];
+  const wallBeams: THREE.Mesh[] = [];
+  const beamTex = createArandelaBeamTexture();
+  const beamMat = new THREE.MeshBasicMaterial({
+    map: beamTex,
+    transparent: true,
+    opacity: 0.0,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide
+  });
 
   function box(name: string, x: number, y: number, z: number, w: number, h: number, d: number, mat: THREE.Material) {
     const obj = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -194,6 +252,14 @@ export function finishScene(
     if (id === 25) { worldUV(mesh.geometry, 2.4); mesh.material = pavingMat; }
     if ([22, 23, 52, 55].includes(id)) mesh.material = metal;
   }
+
+  // Muros laterais altos (ID 50 e 54): ajustados para a altura padrão dos outros muros (2.8m)
+  const tallWalls = [byId.get(50), byId.get(54)].filter(Boolean) as THREE.Mesh[];
+  tallWalls.forEach(mesh => {
+    mesh.scale.y = 2.8 / 5.8;
+    mesh.material = plaster;
+    walls.push(mesh);
+  });
 
   const baseFloor = byId.get(25);
   const slab = byId.get(31);
@@ -285,18 +351,29 @@ export function finishScene(
     scene.add(poolLight);
   }
 
-  // Arandelas ao longo dos muros do pátio: 1 luz focal curta em cada spot (8 luzes leves, sem sobreposição)
+  // Arandelas ao longo dos muros do pátio: feixe em cada spot (Sugestão 1) + 2 PointLights difusas leves
+  const beamGeo = new THREE.PlaneGeometry(1.4, 2.0);
   for (const x of [1.5, 4.6, 7.7, 10.8]) {
     for (const z of [-4.83, 4.83]) {
       box('Arandela preta', x, 1.85, z, 0.17, 0.4, 0.13, metal);
       box('Difusor da arandela', x, 1.85, z + (z < 0 ? 0.075 : -0.075), 0.11, 0.3, 0.022, glowingArandelas);
 
-      // Raio curto e realista (2.4m): ilumina a parede e a beirada do piso sem cruzar com as outras arandelas
-      const lamp = new THREE.PointLight('#ff9d3b', 0, 2.4, 2.0);
-      lamp.position.set(x, 1.80, z + (z < 0 ? 0.18 : -0.18));
-      arandelaLights.push(lamp);
+      // Facho de luz suave colado no muro (efeito visual de arandela real)
+      const beamMesh = new THREE.Mesh(beamGeo, beamMat);
+      beamMesh.position.set(x, 1.85, z < 0 ? -4.89 : 4.89);
+      if (z > 0) beamMesh.rotation.y = Math.PI;
+      beamMesh.visible = false;
+      scene.add(beamMesh);
+      wallBeams.push(beamMesh);
     }
   }
+
+  // Apenas 2 luzes de longo alcance difusas (1 em cada muro) para iluminação real no chão com custo mínimo
+  const lampLeft = new THREE.PointLight('#ff9d3b', 0, 14.0, 1.8);
+  lampLeft.position.set(6.15, 1.85, -4.30);
+  const lampRight = new THREE.PointLight('#ff9d3b', 0, 14.0, 1.8);
+  lampRight.position.set(6.15, 1.85, 4.30);
+  arandelaLights.push(lampLeft, lampRight);
 
   // Iluminação dedicada da Escada (Sonoff Luz Escada)
   const stairMesh = byId.get(54);
@@ -426,12 +503,14 @@ export function finishScene(
     },
     setArandelas(on: boolean) {
       arandelaLights.forEach(l => {
-        l.intensity = on ? 24 : 0;
+        l.intensity = on ? 16 : 0;
         if (on) { if (!l.parent) scene.add(l); }
         else { if (l.parent) scene.remove(l); }
       });
       glowingArandelas.color.set(on ? '#ffdf9d' : '#221a12');
       glowingArandelas.emissiveIntensity = on ? 4.5 : 0.0;
+      beamMat.opacity = on ? 0.90 : 0.0;
+      wallBeams.forEach(b => { b.visible = on; });
 
       // Luz do coqueiro sincronizada com as arandelas
       if (coqueiroSpot) {

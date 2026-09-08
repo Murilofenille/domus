@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { finishScene, type FinishSceneResult } from '../3d/leisureFinishes';
 import { 
-  Sun, Moon, Layers, Eye, EyeOff, ArrowLeft, RotateCw,
+  Sun, Moon, Eye, EyeOff, ArrowLeft, RotateCw,
   Lightbulb, Droplets, Thermometer, Flame, Sparkles
 } from 'lucide-react';
 
@@ -26,7 +26,6 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
 
   // Estados de controle da maquete
   const [isNight, setIsNight] = useState(true);
-  const [showUpper, setShowUpper] = useState(false);
   const [wallsLowered, setWallsLowered] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadProgress, setLoadProgress] = useState(0);
@@ -160,6 +159,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
           if (!node.isMesh || !match) continue;
           const id = Number(match[1]);
           if (duplicates.has(id)) continue;
+          if (upperIds.has(id)) continue; // Exclui completamente todos os elementos do segundo andar
 
           const geo = node.geometry.clone();
           geo.applyMatrix4(basis);
@@ -172,10 +172,6 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
           mesh.receiveShadow = true;
           mesh.userData.id = id;
 
-          if (upperIds.has(id)) {
-            upperMeshes.push(mesh);
-            mesh.visible = false;
-          }
           if ([0, 1, 26, 29].includes(id)) {
             wallMeshes.push(mesh);
           }
@@ -391,17 +387,6 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     });
   }, []);
 
-  // Alternar 2º Andar
-  const toggleUpper = useCallback(() => {
-    setShowUpper(prev => {
-      const next = !prev;
-      if (finishesRef.current) finishesRef.current.setUpperVisible(next);
-      if (rendererRef.current) rendererRef.current.shadowMap.needsUpdate = true;
-      if (requestRenderRef.current) requestRenderRef.current();
-      return next;
-    });
-  }, []);
-
   // Rebaixar muros
   const toggleWalls = useCallback(() => {
     setWallsLowered(prev => {
@@ -597,16 +582,6 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
 
       {/* Barra Flutuante Inferior de Ferramentas de Inspeção */}
       <div className="leisure-tools-bar">
-        {/* Toggle 2º Andar */}
-        <button
-          type="button"
-          onClick={toggleUpper}
-          className={`leisure-tool-btn ${showUpper ? 'active-amber' : ''}`}
-        >
-          <Layers size={14} />
-          <span>{showUpper ? 'Ocultar 2º Andar' : 'Mostrar 2º Andar'}</span>
-        </button>
-
         {/* Rebaixar Muros */}
         <button
           type="button"

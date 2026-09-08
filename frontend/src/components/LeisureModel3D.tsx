@@ -62,10 +62,10 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
   const isStairOn = Boolean(devicesData['1000e4a34e']?.switch ?? devicesData['1000e4a34e']?.switch_1);
   const isArandelaOn = Boolean(devicesData['1000e4bd27']?.switch ?? devicesData['1000e4bd27']?.switch_1);
   const isGourmetOn = Boolean(devicesData['1000e4a34c']?.switch ?? devicesData['1000e4a34c']?.switch_1);
-  const isPoolLightOn = Boolean(devicesData['1000e8f9b1']?.switch_2);
-  const isWaterfallOn = Boolean(devicesData['1000e8f9b1']?.switch_1);
-  const isHydroOn = Boolean(devicesData['1000e8f9b1']?.switch_3);
-  const isPumpOn = Boolean(devicesData['1000e8f9b1']?.switch_4);
+  const isFilterOn = Boolean(devicesData['1000e8f9b1']?.switch_1);
+  const isHydroBackOn = Boolean(devicesData['1000e8f9b1']?.switch_2);
+  const isHeaterOn = Boolean(devicesData['1000e8f9b1']?.switch_3);
+  const isHydroFeetOn = Boolean(devicesData['1000e8f9b1']?.switch_4);
 
   // Inicialização Three.js
   useEffect(() => {
@@ -287,8 +287,8 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
 
   useEffect(() => {
     if (!finishesRef.current) return;
-    finishesRef.current.setPoolLight(isPoolLightOn);
-  }, [isPoolLightOn]);
+    finishesRef.current.setPoolLight(isHydroBackOn || isHydroFeetOn);
+  }, [isHydroBackOn, isHydroFeetOn]);
 
   // Alternar modo Noturno / Diurno
   const toggleNight = useCallback(() => {
@@ -430,44 +430,44 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
               )}
 
               <div className="leisure-pool-controls">
-                {/* Luz da Piscina */}
+                {/* Canal 1: Filtro */}
                 <button
                   type="button"
-                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_2', isPoolLightOn)}
-                  title="Luz da Piscina"
-                  className={`leisure-pool-btn ${isPoolLightOn ? 'active-light' : ''}`}
+                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_1', isFilterOn)}
+                  title="Filtro (Canal 1)"
+                  className={`leisure-pool-btn ${isFilterOn ? 'active-pump' : ''}`}
                 >
-                  <Lightbulb size={15} />
+                  <RotateCw size={14} className={isFilterOn ? 'animate-spin' : ''} />
                 </button>
 
-                {/* Cascata */}
+                {/* Canal 2: Hidro Costa */}
                 <button
                   type="button"
-                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_1', isWaterfallOn)}
-                  title="Cascata"
-                  className={`leisure-pool-btn ${isWaterfallOn ? 'active-water' : ''}`}
-                >
-                  <Droplets size={15} />
-                </button>
-
-                {/* Hidro */}
-                <button
-                  type="button"
-                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_3', isHydroOn)}
-                  title="Hidromassagem"
-                  className={`leisure-pool-btn ${isHydroOn ? 'active-hydro' : ''}`}
+                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_2', isHydroBackOn)}
+                  title="Hidro Costa (Canal 2)"
+                  className={`leisure-pool-btn ${isHydroBackOn ? 'active-hydro' : ''}`}
                 >
                   <Sparkles size={15} />
                 </button>
 
-                {/* Bomba Filtro */}
+                {/* Canal 3: Aquecedor */}
                 <button
                   type="button"
-                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_4', isPumpOn)}
-                  title="Bomba Filtro"
-                  className={`leisure-pool-btn ${isPumpOn ? 'active-pump' : ''}`}
+                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_3', isHeaterOn)}
+                  title="Aquecedor (Canal 3)"
+                  className={`leisure-pool-btn ${isHeaterOn ? 'active-light' : ''}`}
                 >
-                  <RotateCw size={14} className={isPumpOn ? 'animate-spin' : ''} />
+                  <Flame size={15} />
+                </button>
+
+                {/* Canal 4: Hidro Pé */}
+                <button
+                  type="button"
+                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_4', isHydroFeetOn)}
+                  title="Hidro Pé (Canal 4)"
+                  className={`leisure-pool-btn ${isHydroFeetOn ? 'active-water' : ''}`}
+                >
+                  <Droplets size={15} />
                 </button>
               </div>
             </div>

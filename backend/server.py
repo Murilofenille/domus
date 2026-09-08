@@ -193,10 +193,10 @@ DEFAULT_DEVICE_ROOMS = {
 
 DEFAULT_CHANNEL_NAMES = {
     "1000e8f9b1": {
-        "switch_1": "Cascata",
-        "switch_2": "Iluminação Piscina",
-        "switch_3": "Hidromassagem",
-        "switch_4": "Bomba Filtro"
+        "switch_1": "Filtro",
+        "switch_2": "Hidro Costa",
+        "switch_3": "Aquecedor",
+        "switch_4": "Hidro Pé"
     },
     "1000e4a34e": {
         "switch": "Luz Escada",

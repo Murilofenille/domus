@@ -394,7 +394,7 @@ export function App() {
       { devKey: '1000e4a34e', code: 'switch', fallbackCode: 'switch_1', defaultName: 'Luz Escada' },
       { devKey: '1000e4bd27', code: 'switch', fallbackCode: 'switch_1', defaultName: 'Arandela Piscina' },
       { devKey: '1000e4a34c', code: 'switch', fallbackCode: 'switch_1', defaultName: 'Iluminação Salão' },
-      { devKey: '1000e8f9b1', code: 'switch_2', fallbackCode: 'switch_1', defaultName: 'Luz Piscina' },
+      { devKey: '1000e8f9b1', code: 'switch_1', fallbackCode: 'switch_2', defaultName: 'Filtro Piscina' },
     ];
 
     const switchesList: Array<{

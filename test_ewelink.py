@@ -27,10 +27,10 @@ DEVICES = [
     {"id": "1000e4a34e", "name": "Luz Escada", "code": "switch"},
     {"id": "1000e4bd27", "name": "Arandela Piscina", "code": "switch"},
     {"id": "1000e4a34c", "name": "Iluminacao Salao", "code": "switch"},
-    {"id": "1000e8f9b1", "name": "Piscina - Cascata (CH1)", "code": "switch_1"},
-    {"id": "1000e8f9b1", "name": "Piscina - Luz Subaquatica (CH2)", "code": "switch_2"},
-    {"id": "1000e8f9b1", "name": "Piscina - Hidromassagem (CH3)", "code": "switch_3"},
-    {"id": "1000e8f9b1", "name": "Piscina - Bomba Filtro (CH4)", "code": "switch_4"},
+    {"id": "1000e8f9b1", "name": "Piscina - Filtro (CH1)", "code": "switch_1"},
+    {"id": "1000e8f9b1", "name": "Piscina - Hidro Costa (CH2)", "code": "switch_2"},
+    {"id": "1000e8f9b1", "name": "Piscina - Aquecedor (CH3)", "code": "switch_3"},
+    {"id": "1000e8f9b1", "name": "Piscina - Hidro Pe (CH4)", "code": "switch_4"},
 ]
 
 def header():

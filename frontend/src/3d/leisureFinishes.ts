@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { applyFloorFinishes } from './leisureFloors';
+import { refineGarden } from './leisureGarden';
 
 // Seamless textures geradas via HTML Canvas procedural
 function texture(kind: 'tile' | 'brick' | 'paving'): THREE.CanvasTexture {
@@ -194,7 +195,7 @@ export function finishScene(
 
   const brick = new THREE.MeshStandardMaterial({ map: bricks, roughness: 0.91 });
   const stoneTexture = stoneMaps();
-  const stone = new THREE.MeshStandardMaterial({ map: stoneTexture.map, roughness: 0.89 });
+  const stone = new THREE.MeshStandardMaterial({ map: stoneTexture.map, bumpMap: stoneTexture.bump, bumpScale: 0.045, roughness: 0.89 });
   const pavingMat = new THREE.MeshStandardMaterial({ map: paving, roughness: 0.8 });
   const plaster = new THREE.MeshStandardMaterial({ color: '#8b8c87', roughness: 0.92 });
   const metal = new THREE.MeshStandardMaterial({ color: '#171b1d', metalness: 0.48, roughness: 0.34 });
@@ -212,6 +213,7 @@ export function finishScene(
   const stoneIDs = new Set([11, 15, 16]);
   const graniteIDs = new Set([9, 10, 13, 18]);
   const byId = new Map(meshes.map(m => [m.userData.id, m]));
+  refineGarden(scene, meshes);
 
   const arandelaLights: THREE.PointLight[] = [];
   const wallBeams: THREE.Mesh[] = [];
@@ -317,17 +319,27 @@ export function finishScene(
 
     worldUV(g, 0.8);
     mesh.material = poolTile;
+    // Rebaixa o revestimento sob a lâmina, mantendo o contorno original do OBJ.
+    // A piscina principal permanece acima do piso-base; não inventa um corte no terreno.
+    const basin = g.clone();
+    const bp = basin.attributes.position;
+    const bottom = id === 3 ? 0.23 : 0.115;
+    for (let i = 0; i < bp.count; i++) {
+      if (Math.abs(bp.getY(i) - top) < 0.0001) bp.setY(i, bottom);
+    }
+    basin.computeVertexNormals();
+    mesh.geometry = basin;
 
     const wg = new THREE.BufferGeometry();
     wg.setAttribute('position', new THREE.Float32BufferAttribute(coords, 3));
     wg.computeVertexNormals();
 
     const water = new THREE.MeshStandardMaterial({
-      color: '#087da7',
-      roughness: 0.17,
-      metalness: 0.12,
+      color: '#26999e',
+      roughness: 0.13,
+      metalness: 0.05,
       transparent: true,
-      opacity: 0.82,
+      opacity: 0.48,
       side: THREE.FrontSide,
       depthWrite: false
     });
@@ -356,8 +368,15 @@ export function finishScene(
     for (const edge of edges.values()) {
       if (edge.count === 1) {
         const a = edge.a.clone(), b = edge.b.clone();
-        a.y = b.y = top + 0.13;
-        beam(a, b, 0.18, coping);
+        // Parede interna independente do fundo rebaixado.
+        const delta = b.clone().sub(a);
+        const lining = box('Revestimento vertical da piscina', (a.x+b.x)/2,
+          (bottom+top)/2, (a.z+b.z)/2, 0.035, top-bottom, delta.length(), poolTile);
+        lining.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), delta.normalize());
+        worldUV(lining.geometry, 0.8);
+        a.y = b.y = top + 0.10;
+        const border = beam(a, b, id === 3 ? 0.30 : 0.27, coping);
+        border.scale.y = 0.30;
       }
     }
   }

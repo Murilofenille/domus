@@ -111,6 +111,9 @@ export function applyFloorFinishes(floor: THREE.Mesh, deck?: THREE.Mesh, divider
     const duv: number[] = [];
     for (let i = 0; i < dp.count; i++) duv.push(dp.getX(i) / 2.4, dp.getZ(i) / 2.4);
     deck.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(duv, 2));
-    deck.material = outside;
+    // Plataforma junto à hidro: madeira mais escura que o porcelanato externo.
+    deck.material = new THREE.MeshStandardMaterial({
+      map: outsideMap, color: '#78604b', roughness: 0.76, metalness: 0
+    });
   }
 }

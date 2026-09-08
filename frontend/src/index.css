@@ -47,12 +47,12 @@ html, body, #root {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.95);
   border-radius: 18px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .topbar-left {
@@ -68,17 +68,16 @@ html, body, #root {
 }
 
 .topbar-brand-logo {
-  height: 38px;
+  height: 24px;
   width: auto;
-  max-width: 170px;
+  max-width: 140px;
   object-fit: contain;
-  filter: drop-shadow(0 2px 8px rgba(59, 130, 246, 0.35));
   transition: transform 0.2s ease;
   user-select: none;
 }
 
 .topbar-brand-logo:hover {
-  transform: scale(1.03);
+  transform: scale(1.04);
 }
 
 .brand-dot {
@@ -93,17 +92,17 @@ html, body, #root {
   font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: #F8FAFC;
+  color: #0F172A;
 }
 
 .brand-divider {
-  color: rgba(255, 255, 255, 0.2);
+  color: #CBD5E1;
   font-weight: 300;
 }
 
 .brand-sub {
   font-size: 13px;
-  color: #94A3B8;
+  color: #64748B;
   font-weight: 500;
 }
 
@@ -126,15 +125,15 @@ html, body, #root {
 }
 
 .status-pill.online {
-  background: rgba(16, 185, 129, 0.16);
-  color: #34D399;
-  border: 1px solid rgba(16, 185, 129, 0.35);
+  background: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
 }
 
 .status-pill.offline {
-  background: rgba(239, 68, 68, 0.16);
-  color: #F87171;
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FECACA;
 }
 
 .light-counter-pill {
@@ -142,12 +141,12 @@ html, body, #root {
   align-items: center;
   gap: 8px;
   padding: 6px 14px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
   border-radius: 30px;
   font-size: 12px;
   font-weight: 600;
-  color: #E2E8F0;
+  color: #334155;
 }
 
 .counter-dot {
@@ -168,9 +167,9 @@ html, body, #root {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.1);
+  background: #0F172A;
   color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: none;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
@@ -179,8 +178,7 @@ html, body, #root {
 }
 
 .quick-action-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.24);
+  background: #1E293B;
   transform: translateY(-1px);
 }
 
@@ -190,12 +188,11 @@ html, body, #root {
 
 .time-display {
   padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #F1F5F9;
   border-radius: 10px;
   font-size: 13px;
   font-weight: 700;
-  color: #F8FAFC;
+  color: #1E293B;
 }
 
 /* Painel Lateral HUD */
@@ -451,6 +448,10 @@ html, body, #root {
     right: 10px;
     height: 52px;
     padding: 0 12px;
+  }
+
+  .topbar-brand-logo {
+    height: 20px;
   }
 
   .brand-sub, .light-counter-pill {
@@ -1089,6 +1090,10 @@ html, body, #root {
     left: max(12px, env(safe-area-inset-left, 12px));
     right: max(12px, env(safe-area-inset-right, 12px));
     border-radius: 14px;
+  }
+
+  .topbar-brand-logo {
+    height: 20px;
   }
 
   .brand-title {

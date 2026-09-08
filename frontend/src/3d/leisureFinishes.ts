@@ -253,13 +253,30 @@ export function finishScene(
     if ([22, 23, 52, 55].includes(id)) mesh.material = metal;
   }
 
-  // Muros laterais altos (ID 50 e 54): ajustados para a altura padrão dos outros muros (2.8m)
-  const tallWalls = [byId.get(50), byId.get(54)].filter(Boolean) as THREE.Mesh[];
-  tallWalls.forEach(mesh => {
-    mesh.scale.y = 2.8 / 5.8;
-    mesh.material = plaster;
-    walls.push(mesh);
+  // Muros laterais altos (ID 50 e 54): ajustados para altura padrão (2.8m), cor preta e deslocados para dentro (evitando conflito com as paredes)
+  const blackWallMat = new THREE.MeshStandardMaterial({
+    color: '#181a1c',
+    roughness: 0.85,
+    metalness: 0.12
   });
+
+  const wall50 = byId.get(50);
+  if (wall50) {
+    wall50.scale.y = 2.8 / 5.8;
+    wall50.material = blackWallMat;
+    wall50.position.z += 0.12; // Desloca para dentro do pátio
+    wall50.position.x += 0.08; // Desloca para frente (longe do fundo)
+    walls.push(wall50);
+  }
+
+  const wall54 = byId.get(54);
+  if (wall54) {
+    wall54.scale.y = 2.8 / 5.8;
+    wall54.material = blackWallMat;
+    wall54.position.z -= 0.12; // Desloca para dentro do pátio
+    wall54.position.x += 0.08; // Desloca para frente (longe do fundo)
+    walls.push(wall54);
+  }
 
   const baseFloor = byId.get(25);
   const slab = byId.get(31);

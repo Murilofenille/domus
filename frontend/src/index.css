@@ -2441,35 +2441,45 @@ html, body, #root {
 .viewmode-toggle-pill {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 20px;
-  padding: 3px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 2px;
   gap: 2px;
+  box-shadow: none;
 }
 
 .viewmode-tab {
   border: none;
   background: transparent;
-  color: #94A3B8;
+  color: #64748B;
   font-family: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 5px 12px;
-  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 9px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  letter-spacing: 0.04em;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+  box-shadow: none;
+  outline: none;
 }
 
 .viewmode-tab:hover {
-  color: #FFFFFF;
+  color: #0F172A;
+  background: #F1F5F9;
 }
 
 .viewmode-tab.active {
-  background: #2563EB;
+  background: #0F172A;
   color: #FFFFFF;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.viewmode-tab.active:hover {
+  background: #1E293B;
+  color: #FFFFFF;
 }
 
 /* --- BOTÃO DE AVALIAÇÃO NA TOPBAR --- */

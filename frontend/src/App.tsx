@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { CutawayHouse } from './components/CutawayHouse';
+import { Floorplan2D } from './components/Floorplan2D';
 import { TopBar } from './components/TopBar';
 import { SidePanel, type RoomDeviceItem } from './components/SidePanel';
 import { SettingsModal, type DeviceInfoItem } from './components/SettingsModal';
 import { SpotifyPlayer } from './components/SpotifyPlayer';
 import { ReviewModal } from './components/ReviewModal';
-import { automationPins } from './houseLayout';
+import { rooms, automationPins } from './houseLayout';
 import { DEFAULT_DEVICES_LIST, DEFAULT_DEVICE_ROOMS, DEFAULT_CHANNEL_NAMES } from './defaultDevices';
 import type { Room } from './types';
 import { fetchDeviceStatus, sendTuyaCommand, fetchDeviceConfig } from './services/api';
@@ -447,53 +448,62 @@ export function App() {
         <SpotifyPlayer />
       </div>
 
-      {/* Canvas 3D Isométrico Otimizado para Tablets */}
-      <div className="canvas-wrapper">
-        <Canvas
-          shadows
-          dpr={[1, 1.5]}
-          gl={{
-            powerPreference: 'high-performance',
-            antialias: true,
-            alpha: false,
-            stencil: false,
-            depth: true
-          }}
-          camera={{
-            position: [12, 24, 25],
-            fov: 34,
-            near: 0.1,
-            far: 1000
-          }}
-        >
-          <color attach="background" args={["#EEF2F6"]} />
-          <ambientLight intensity={1.5} />
+      {/* Alternância: Modo 2D Planta Baixa Pura vs Modo 3D Isométrico */}
+      {viewMode === '2D' ? (
+        <Floorplan2D
+          rooms={rooms}
+          roomActiveStates={roomActiveStates}
+          selectedRoomId={selectedRoom?.id}
+          onSelectRoom={(room) => setSelectedRoom(room)}
+        />
+      ) : (
+        <div className="canvas-wrapper">
+          <Canvas
+            shadows
+            dpr={[1, 1.5]}
+            gl={{
+              powerPreference: 'high-performance',
+              antialias: true,
+              alpha: false,
+              stencil: false,
+              depth: true
+            }}
+            camera={{
+              position: [12, 24, 25],
+              fov: 34,
+              near: 0.1,
+              far: 1000
+            }}
+          >
+            <color attach="background" args={["#EEF2F6"]} />
+            <ambientLight intensity={1.5} />
 
-          {/* Sol / Luz Direcional com sombras arquitetônicas suaves (1024x1024 para alta fluidez) */}
-          <directionalLight
-            position={[-15, 30, 20]}
-            intensity={2.2}
-            castShadow
-            shadow-mapSize-width={1024}
-            shadow-mapSize-height={1024}
-            shadow-bias={-0.0001}
-          />
-          <directionalLight position={[15, 15, -20]} intensity={0.8} />
+            {/* Sol / Luz Direcional com sombras arquitetônicas suaves (1024x1024 para alta fluidez) */}
+            <directionalLight
+              position={[-15, 30, 20]}
+              intensity={2.2}
+              castShadow
+              shadow-mapSize-width={1024}
+              shadow-mapSize-height={1024}
+              shadow-bias={-0.0001}
+            />
+            <directionalLight position={[15, 15, -20]} intensity={0.8} />
 
-          {/* Maquete da Casa com Cômodos e Mobília */}
-          <CutawayHouse
-            lightStates={lightStates}
-            roomActiveStates={roomActiveStates}
-            onToggleLight={handleTogglePinLight}
-            onSelectRoom={(room) => setSelectedRoom(room)}
-            selectedRoomId={selectedRoom?.id}
-            viewMode={viewMode}
-          />
+            {/* Maquete da Casa com Cômodos e Mobília */}
+            <CutawayHouse
+              lightStates={lightStates}
+              roomActiveStates={roomActiveStates}
+              onToggleLight={handleTogglePinLight}
+              onSelectRoom={(room) => setSelectedRoom(room)}
+              selectedRoomId={selectedRoom?.id}
+              viewMode="3D"
+            />
 
-          {/* Controles de Câmera com Alternância 2D / 3D */}
-          <CameraController viewMode={viewMode} />
-        </Canvas>
-      </div>
+            {/* Controles de Câmera 3D */}
+            <CameraController viewMode="3D" />
+          </Canvas>
+        </div>
+      )}
 
       {/* Modal Gerenciador de Dispositivos e Canais */}
       <SettingsModal

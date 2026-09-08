@@ -48,14 +48,14 @@ function floorMap(wood: boolean): THREE.CanvasTexture {
   const map = new THREE.CanvasTexture(canvas);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.colorSpace = THREE.SRGBColorSpace;
-  map.anisotropy = 8;
+  map.anisotropy = 4;
   return map;
 }
 
 export function applyFloorFinishes(floor: THREE.Mesh, deck?: THREE.Mesh, divider: number = -2.4) {
   const insideMap = floorMap(false), outsideMap = floorMap(true);
   const inside = new THREE.MeshStandardMaterial({ map: insideMap, roughness: 0.46, metalness: 0 });
-  const outside = new THREE.MeshStandardMaterial({ map: outsideMap, bumpMap: outsideMap, bumpScale: 0.003, roughness: 0.84, metalness: 0 });
+  const outside = new THREE.MeshStandardMaterial({ map: outsideMap, roughness: 0.84, metalness: 0 });
 
   const source = floor.geometry.index ? floor.geometry.toNonIndexed() : floor.geometry;
   const p = source.attributes.position;

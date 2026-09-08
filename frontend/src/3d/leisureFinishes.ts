@@ -144,10 +144,10 @@ export function finishScene(
   const tiles = texture('tile');
   const paving = texture('paving');
 
-  const brick = new THREE.MeshStandardMaterial({ map: bricks, bumpMap: bricks, bumpScale: 0.025, roughness: 0.91 });
+  const brick = new THREE.MeshStandardMaterial({ map: bricks, roughness: 0.91 });
   const stoneTexture = stoneMaps();
-  const stone = new THREE.MeshStandardMaterial({ map: stoneTexture.map, bumpMap: stoneTexture.bump, bumpScale: 0.045, roughness: 0.89 });
-  const pavingMat = new THREE.MeshStandardMaterial({ map: paving, bumpMap: paving, bumpScale: 0.007, roughness: 0.8 });
+  const stone = new THREE.MeshStandardMaterial({ map: stoneTexture.map, roughness: 0.89 });
+  const pavingMat = new THREE.MeshStandardMaterial({ map: paving, roughness: 0.8 });
   const plaster = new THREE.MeshStandardMaterial({ color: '#8b8c87', roughness: 0.92 });
   const metal = new THREE.MeshStandardMaterial({ color: '#171b1d', metalness: 0.48, roughness: 0.34 });
   const granite = new THREE.MeshStandardMaterial({ color: '#202326', roughness: 0.23, metalness: 0.22 });
@@ -290,12 +290,14 @@ export function finishScene(
     for (const z of [-4.83, 4.83]) {
       box('Arandela preta', x, 1.85, z, 0.17, 0.4, 0.13, metal);
       box('Difusor da arandela', x, 1.85, z + (z < 0 ? 0.075 : -0.075), 0.11, 0.3, 0.022, glowingArandelas);
-      const lamp = new THREE.PointLight('#ff9d3b', 0, 6.0, 2.0);
-      lamp.position.set(x, 1.8, z + (z < 0 ? 0.22 : -0.22));
-      scene.add(lamp);
-      arandelaLights.push(lamp);
     }
   }
+  // 2 luzes equilibradas de longo alcance para os muros esquerdo e direito (substitui 8 point lights pesadas)
+  const lampLeft = new THREE.PointLight('#ff9d3b', 0, 14.0, 1.8);
+  lampLeft.position.set(6.15, 1.85, -4.55);
+  const lampRight = new THREE.PointLight('#ff9d3b', 0, 14.0, 1.8);
+  lampRight.position.set(6.15, 1.85, 4.55);
+  arandelaLights.push(lampLeft, lampRight);
 
   // Iluminação dedicada da Escada (Sonoff Luz Escada)
   const stairMesh = byId.get(54);
@@ -450,29 +452,49 @@ export function finishScene(
     },
     setArandelas(on: boolean) {
       arandelaLights.forEach(l => {
-        l.intensity = on ? 18 : 0;
+        l.intensity = on ? 24 : 0;
+        if (on) { if (!l.parent) scene.add(l); }
+        else { if (l.parent) scene.remove(l); }
       });
       glowingArandelas.color.set(on ? '#ffdf9d' : '#221a12');
       glowingArandelas.emissiveIntensity = on ? 4.5 : 0.0;
 
       // Luz do coqueiro sincronizada com as arandelas
-      if (coqueiroSpot) coqueiroSpot.intensity = on ? 24 : 0;
-      if (coqueiroPoint) coqueiroPoint.intensity = on ? 12 : 0;
+      if (coqueiroSpot) {
+        coqueiroSpot.intensity = on ? 24 : 0;
+        if (on) { if (!coqueiroSpot.parent) scene.add(coqueiroSpot); }
+        else { if (coqueiroSpot.parent) scene.remove(coqueiroSpot); }
+      }
+      if (coqueiroPoint) {
+        coqueiroPoint.intensity = on ? 12 : 0;
+        if (on) { if (!coqueiroPoint.parent) scene.add(coqueiroPoint); }
+        else { if (coqueiroPoint.parent) scene.remove(coqueiroPoint); }
+      }
       glowingCoqueiroLens.color.set(on ? '#ffe0a0' : '#221a12');
       glowingCoqueiroLens.emissiveIntensity = on ? 5.0 : 0.0;
     },
     setStairLight(on: boolean) {
-      if (stairLight) stairLight.intensity = on ? 18 : 0;
+      if (stairLight) {
+        stairLight.intensity = on ? 18 : 0;
+        if (on) { if (!stairLight.parent) scene.add(stairLight); }
+        else { if (stairLight.parent) scene.remove(stairLight); }
+      }
     },
     setGourmetLight(on: boolean) {
       gourmetLights.forEach(({ light, onIntensity }) => {
         light.intensity = on ? onIntensity : 0;
+        if (on) { if (!light.parent) scene.add(light); }
+        else { if (light.parent) scene.remove(light); }
       });
       glowingGourmetLamps.color.set(on ? '#fff6e4' : '#221a12');
       glowingGourmetLamps.emissiveIntensity = on ? 4.0 : 0.0;
     },
     setPoolLight(on: boolean) {
-      if (poolLight) poolLight.intensity = on ? 26 : 0;
+      if (poolLight) {
+        poolLight.intensity = on ? 26 : 0;
+        if (on) { if (!poolLight.parent) scene.add(poolLight); }
+        else { if (poolLight.parent) scene.remove(poolLight); }
+      }
     },
     setWallScale(scaleY: number) {
       walls.forEach(m => { m.scale.y = scaleY; });

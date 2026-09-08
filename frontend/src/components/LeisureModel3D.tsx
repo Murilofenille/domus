@@ -252,18 +252,48 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     };
     updatePinsRef.current = updatePins;
 
+    // Resolução Dinâmica Inteligente: 1.0 durante rotação/zoom para 60fps cravado na Mali-G72;
+    // e restaura 2.0 (Retina máxima) quando a câmera para!
+    const targetPixelRatio = Math.min(window.devicePixelRatio, 2.0);
+    let isInteracting = false;
+    let settleTimeout: number | null = null;
+
+    const onStart = () => {
+      isInteracting = true;
+      if (settleTimeout !== null) {
+        clearTimeout(settleTimeout);
+        settleTimeout = null;
+      }
+      if (renderer.getPixelRatio() !== 1.0) {
+        renderer.setPixelRatio(1.0);
+      }
+      requestRender();
+    };
+
+    const onEnd = () => {
+      if (settleTimeout !== null) clearTimeout(settleTimeout);
+      settleTimeout = window.setTimeout(() => {
+        isInteracting = false;
+        if (renderer.getPixelRatio() !== targetPixelRatio) {
+          renderer.setPixelRatio(targetPixelRatio);
+        }
+        requestRender();
+      }, 180);
+    };
+
+    controls.addEventListener('start', onStart);
+    controls.addEventListener('end', onEnd);
+    controls.addEventListener('change', () => {
+      requestRender();
+      updatePins();
+    });
+
     // Renderização inteligente sob demanda: 0% de uso de GPU em repouso
     let renderFrames = 15;
     const requestRender = () => {
       renderFrames = Math.max(renderFrames, 6);
     };
     requestRenderRef.current = requestRender;
-
-    // Dispara render e pins imediatamente durante gestos de rotação/zoom no tablet
-    controls.addEventListener('change', () => {
-      requestRender();
-      updatePins();
-    });
 
     // Loop de renderização fluido sem sobrecarregar a GPU em repouso
     let animId: number;
@@ -274,6 +304,9 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
       if (isMoving) {
         renderFrames = 6;
         updatePins();
+      } else if (!isInteracting && renderer.getPixelRatio() !== targetPixelRatio) {
+        renderer.setPixelRatio(targetPixelRatio);
+        renderFrames = 2;
       }
 
       if (renderFrames > 0) {
@@ -290,7 +323,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
       const h = container.clientHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+      renderer.setPixelRatio(isInteracting ? 1.0 : targetPixelRatio);
       renderer.setSize(w, h, false);
       updatePins();
       requestRender();
@@ -300,8 +333,10 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
 
     return () => {
       cancelAnimationFrame(animId);
+      if (settleTimeout !== null) clearTimeout(settleTimeout);
       window.removeEventListener('resize', handleResize);
-      controls.removeEventListener('change', updatePins);
+      controls.removeEventListener('start', onStart);
+      controls.removeEventListener('end', onEnd);
       controls.dispose();
       renderer.dispose();
       scene.clear();

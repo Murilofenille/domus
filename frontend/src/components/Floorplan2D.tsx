@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Lightbulb, ZoomIn, ZoomOut, RotateCcw, Moon, Sun } from 'lucide-react';
+import { Lightbulb, ZoomIn, ZoomOut, RotateCcw, Moon, Sun, Smartphone, Monitor } from 'lucide-react';
 import type { Room } from '../types';
 
 interface Floorplan2DProps {
@@ -18,7 +18,10 @@ export const Floorplan2D: React.FC<Floorplan2DProps> = ({
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  // Modo claro é o principal e padrão conforme solicitado
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  // Modo horizontal é o padrão para telas de tablet widescreen
+  const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
   const [hoveredRoomId, setHoveredRoomId] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,7 +44,7 @@ export const Floorplan2D: React.FC<Floorplan2DProps> = ({
 
   // Suporte a Mouse Drag para Pan
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return; // apenas clique esquerdo
+    if (e.button !== 0) return;
     setIsDragging(true);
     dragStartRef.current = {
       x: e.clientX,
@@ -114,7 +117,6 @@ export const Floorplan2D: React.FC<Floorplan2DProps> = ({
     touchDistanceRef.current = null;
   };
 
-  // Prevenir zoom do navegador quando rolando na planta
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -127,12 +129,15 @@ export const Floorplan2D: React.FC<Floorplan2DProps> = ({
     };
   }, []);
 
-  const imageSrc = theme === 'dark' ? '/planta_baixa_2d_dark.png' : '/planta_baixa_2d_light.png';
+  // Seleção de Imagem de Fundo (Horizontal vs Vertical)
+  const imageSrc = orientation === 'horizontal'
+    ? (theme === 'light' ? '/planta_baixa_horizontal_clean.png' : '/planta_baixa_horizontal_dark.png')
+    : (theme === 'light' ? '/planta_baixa_2d_light.png' : '/planta_baixa_2d_dark.png');
 
   return (
     <div
       ref={containerRef}
-      className="floorplan-2d-viewport"
+      className={`floorplan-2d-viewport theme-${theme}`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -143,7 +148,7 @@ export const Floorplan2D: React.FC<Floorplan2DProps> = ({
       onTouchEnd={handleTouchEnd}
       style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
     >
-      {/* HUD de Controles Flutuantes da Planta 2D */}
+      {/* HUD de Controles Flutuantes da Planta 2D (Sem sombras pesadas) */}
       <div className="floorplan-hud-controls" onClick={e => e.stopPropagation()}>
         <button
           className="hud-btn"
@@ -167,19 +172,31 @@ export const Floorplan2D: React.FC<Floorplan2DProps> = ({
           <RotateCcw size={16} />
         </button>
         <div className="hud-divider" />
+        {/* Alternador Horizontal / Vertical */}
         <button
           className="hud-btn"
-          onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
-          title={theme === 'dark' ? "Modo Planta Claro" : "Modo Planta Escuro"}
+          onClick={() => {
+            setOrientation(prev => prev === 'horizontal' ? 'vertical' : 'horizontal');
+            handleReset();
+          }}
+          title={orientation === 'horizontal' ? "Mudar para Modo Vertical" : "Mudar para Modo Horizontal (Tablet)"}
         >
-          {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+          {orientation === 'horizontal' ? <Monitor size={17} /> : <Smartphone size={17} />}
+        </button>
+        {/* Alternador de Tema Claro / Escuro */}
+        <button
+          className="hud-btn"
+          onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+          title={theme === 'light' ? "Modo Escuro" : "Modo Claro"}
+        >
+          {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
         </button>
       </div>
 
       {/* Indicador de Modo 2D e Dica de Navegação */}
       <div className="floorplan-info-badge">
         <span className="badge-dot" />
-        PLANTA BAIXA 2D • TOQUE EM UM CÔMODO
+        PLANTA BAIXA 2D {orientation === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL'} • TOQUE EM UM CÔMODO
       </div>
 
       {/* Prancha da Planta Baixa com Zoom e Pan Transform */}
@@ -191,8 +208,7 @@ export const Floorplan2D: React.FC<Floorplan2DProps> = ({
           transition: isDragging ? 'none' : 'transform 0.15s ease-out'
         }}
       >
-        {/* Imagem Arquitetônica Original da Planta */}
-        <div className={`floorplan-blueprint-wrapper ${theme}`}>
+        <div className={`floorplan-blueprint-wrapper ${orientation} ${theme}`}>
           <img
             src={imageSrc}
             alt="Planta Baixa 2D da Casa"
@@ -208,17 +224,32 @@ export const Floorplan2D: React.FC<Floorplan2DProps> = ({
               const w = room.size[0];
               const l = room.size[1];
 
-              // Normalizado no grid 10m x 25m
-              const left = ((x - w / 2) / 10.0) * 100;
-              const top = ((z - l / 2) / 25.0) * 100;
-              const width = (w / 10.0) * 100;
-              const height = (l / 25.0) * 100;
+              let left = 0;
+              let top = 0;
+              let width = 0;
+              let height = 0;
+
+              if (orientation === 'horizontal') {
+                // Horizontal: Garagem à esquerda (Z=25 -> left=0), Suíte Master à direita (Z=0 -> left=100)
+                // Eixo X da imagem = Comprimento da casa (25m)
+                // Eixo Y da imagem = Largura da casa (10m)
+                const z2 = z + l / 2;
+                left = ((25.0 - z2) / 25.0) * 100;
+                width = (l / 25.0) * 100;
+                top = ((x - w / 2) / 10.0) * 100;
+                height = (w / 10.0) * 100;
+              } else {
+                // Vertical: Garagem embaixo (Z=25), Suíte Master em cima (Z=0)
+                left = ((x - w / 2) / 10.0) * 100;
+                top = ((z - l / 2) / 25.0) * 100;
+                width = (w / 10.0) * 100;
+                height = (l / 25.0) * 100;
+              }
 
               const isSelected = selectedRoomId === room.id;
               const isActive = !!roomActiveStates[room.id];
               const isHovered = hoveredRoomId === room.id;
 
-              // Identificar se o cômodo tem lâmpada ou dispositivo Tuya
               const hasLamp = !!(room.deviceId || room.deviceKey || isActive || room.hasLight !== false);
 
               return (
@@ -242,19 +273,25 @@ export const Floorplan2D: React.FC<Floorplan2DProps> = ({
                   {/* Luz de preenchimento ambiente quando ligado */}
                   {isActive && <div className="room-ambient-glow" />}
 
-                  {/* Badge de Lâmpada Minimalista */}
-                  {hasLamp && (
-                    <div
-                      className={`floorplan-lamp-badge ${isActive ? 'lit' : 'off'}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectRoom(room);
-                      }}
-                      title={`${room.name}: ${isActive ? 'Luz Ligada' : 'Luz Desligada'}`}
-                    >
-                      <Lightbulb size={13} className="lamp-icon" />
-                    </div>
-                  )}
+                  {/* Conteúdo interno do cômodo: Rótulo e Badge de Luz (Upright/Horizontal) */}
+                  <div className={`room-content-wrap ${orientation}`}>
+                    {orientation === 'horizontal' && (
+                      <span className="room-label-text">{room.name}</span>
+                    )}
+
+                    {hasLamp && (
+                      <div
+                        className={`floorplan-lamp-badge ${isActive ? 'lit' : 'off'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectRoom(room);
+                        }}
+                        title={`${room.name}: ${isActive ? 'Luz Ligada' : 'Luz Desligada'}`}
+                      >
+                        <Lightbulb size={12} className="lamp-icon" />
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}

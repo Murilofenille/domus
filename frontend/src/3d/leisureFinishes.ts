@@ -136,6 +136,7 @@ export function finishScene(
   const room = new RoomEnvironment();
   const env = pmrem.fromScene(room, 0.05);
   scene.environment = env.texture;
+  scene.environmentIntensity = 0.04;
   room.dispose();
   pmrem.dispose();
 
@@ -152,7 +153,12 @@ export function finishScene(
   const granite = new THREE.MeshStandardMaterial({ color: '#202326', roughness: 0.23, metalness: 0.22 });
   const coping = new THREE.MeshStandardMaterial({ color: '#e3d7bd', roughness: 0.65 });
   const poolTile = new THREE.MeshStandardMaterial({ map: tiles, roughness: 0.33, metalness: 0.07 });
-  const glowingArandelas = new THREE.MeshStandardMaterial({ color: '#ffdf9d', emissive: '#ffb649', emissiveIntensity: 2.5 });
+  const glowingArandelas = new THREE.MeshStandardMaterial({
+    color: '#221a12',
+    emissive: '#ff9d3b',
+    emissiveIntensity: 0.0,
+    roughness: 0.2
+  });
 
   const brickIDs = new Set([4, 6, 7, 8, 24, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48]);
   const stoneIDs = new Set([11, 15, 16]);
@@ -275,11 +281,11 @@ export function finishScene(
     }
   }
 
-  // Luz subaquática da piscina
+  // Luz subaquática da piscina (RGB / Cyan glow)
   const poolCenter = byId.get(5);
   if (poolCenter) {
     const pb = new THREE.Box3().setFromObject(poolCenter);
-    poolLight = new THREE.PointLight('#00e1ff', 0, 8, 1.8);
+    poolLight = new THREE.PointLight('#00f0ff', 0, 10, 1.6);
     poolLight.position.set((pb.min.x + pb.max.x) / 2, pb.max.y - 0.2, (pb.min.z + pb.max.z) / 2);
     scene.add(poolLight);
   }
@@ -289,8 +295,8 @@ export function finishScene(
     for (const z of [-4.83, 4.83]) {
       box('Arandela preta', x, 1.85, z, 0.17, 0.4, 0.13, metal);
       box('Difusor da arandela', x, 1.85, z + (z < 0 ? 0.075 : -0.075), 0.11, 0.3, 0.022, glowingArandelas);
-      const lamp = new THREE.PointLight('#ffc57d', 10, 4.5, 2);
-      lamp.position.set(x, 1.8, z + (z < 0 ? 0.2 : -0.2));
+      const lamp = new THREE.PointLight('#ff9d3b', 0, 6.0, 2.0);
+      lamp.position.set(x, 1.8, z + (z < 0 ? 0.22 : -0.22));
       scene.add(lamp);
       arandelaLights.push(lamp);
     }
@@ -303,7 +309,7 @@ export function finishScene(
   if (stairMesh) {
     const sb = new THREE.Box3().setFromObject(stairMesh);
     stairPos = [(sb.min.x + sb.max.x) / 2, sb.max.y + 0.8, (sb.min.z + sb.max.z) / 2];
-    stairLight = new THREE.PointLight('#ffddaa', 0, 7, 2);
+    stairLight = new THREE.PointLight('#ffb356', 0, 8.5, 2.0);
     stairLight.position.set(stairPos[0], stairPos[1], stairPos[2]);
     scene.add(stairLight);
   }
@@ -315,7 +321,7 @@ export function finishScene(
   if (gourmetMesh) {
     const gb = new THREE.Box3().setFromObject(gourmetMesh);
     gourmetPos = [(gb.min.x + gb.max.x) / 2, 2.8, (gb.min.z + gb.max.z) / 2];
-    gourmetLight = new THREE.PointLight('#ffebcc', 0, 12, 1.5);
+    gourmetLight = new THREE.PointLight('#ffe4a3', 0, 14, 1.7);
     gourmetLight.position.set(gourmetPos[0], gourmetPos[1], gourmetPos[2]);
     scene.add(gourmetLight);
   }
@@ -351,25 +357,24 @@ export function finishScene(
       waterUniforms.forEach(u => { u.value = t; });
     },
     setNight(on: boolean) {
-      arandelaLights.forEach(l => {
-        l.intensity = on ? 16 : 4;
-      });
-      glowingArandelas.emissiveIntensity = on ? 3.5 : 1.0;
+      // Controla a intensidade da luz ambiente/reflexiva do céu noturno
+      scene.environmentIntensity = on ? 0.04 : 1.0;
     },
     setArandelas(on: boolean) {
       arandelaLights.forEach(l => {
         l.intensity = on ? 18 : 0;
       });
-      glowingArandelas.emissiveIntensity = on ? 3.5 : 0.1;
+      glowingArandelas.color.set(on ? '#ffdf9d' : '#221a12');
+      glowingArandelas.emissiveIntensity = on ? 4.5 : 0.0;
     },
     setStairLight(on: boolean) {
-      if (stairLight) stairLight.intensity = on ? 14 : 0;
+      if (stairLight) stairLight.intensity = on ? 18 : 0;
     },
     setGourmetLight(on: boolean) {
-      if (gourmetLight) gourmetLight.intensity = on ? 22 : 0;
+      if (gourmetLight) gourmetLight.intensity = on ? 24 : 0;
     },
     setPoolLight(on: boolean) {
-      if (poolLight) poolLight.intensity = on ? 20 : 0;
+      if (poolLight) poolLight.intensity = on ? 26 : 0;
     },
     setWallScale(scaleY: number) {
       walls.forEach(m => { m.scale.y = scaleY; });

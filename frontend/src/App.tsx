@@ -476,8 +476,6 @@ export function App() {
             onToggleViewMode={() => setViewMode(v => v === '3D' ? '2D' : '3D')}
             onToggleAll={handleToggleAll}
             onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenReview={() => setIsReviewOpen(true)}
-            onOpenWifi={() => setIsWifiOpen(true)}
             onNavigateHome={() => setActiveTab('dashboard')}
           />
 

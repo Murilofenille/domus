@@ -81,7 +81,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     renderer.toneMappingExposure = 1.1;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#0c1017'); // Dark luxo
+    scene.background = new THREE.Color('#06080e'); // Noite profunda e luxuosa
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(38, container.clientWidth / container.clientHeight, 0.1, 150);
@@ -97,11 +97,13 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     controls.target.set(0, 0, 0);
     controlsRef.current = controls;
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x887969, 0.5);
+    // Luz ambiente noturna suave (céu azul marinho noturno / piso escuro)
+    const hemi = new THREE.HemisphereLight(0x18243b, 0x080b12, 0.08);
     scene.add(hemi);
     hemiRef.current = hemi;
 
-    const sun = new THREE.DirectionalLight(0xffefd9, 0.4);
+    // Luz direcional do luar suave
+    const sun = new THREE.DirectionalLight(0x6080b0, 0.04);
     sun.position.set(-10, 25, 10);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
@@ -194,8 +196,12 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
         const finishes = finishScene(scene, meshes, renderer, wallMeshes, upperMeshes);
         finishesRef.current = finishes;
 
-        // Configuração inicial noturna
+        // Configuração inicial noturna e sincronização das luzes reais
         finishes.setNight(true);
+        finishes.setStairLight(isStairOn);
+        finishes.setArandelas(isArandelaOn);
+        finishes.setGourmetLight(isGourmetOn);
+        finishes.setPoolLight(isHydroBackOn || isHydroFeetOn);
         setIsLoading(false);
       },
       (xhr) => {
@@ -290,13 +296,22 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     finishesRef.current.setPoolLight(isHydroBackOn || isHydroFeetOn);
   }, [isHydroBackOn, isHydroFeetOn]);
 
-  // Alternar modo Noturno / Diurno
+  // Alternar modo Noturno / Diurno com transição suave de iluminação
   const toggleNight = useCallback(() => {
     setIsNight(prev => {
       const next = !prev;
-      if (sceneRef.current) sceneRef.current.background = new THREE.Color(next ? '#0c1017' : '#d8deda');
-      if (hemiRef.current) hemiRef.current.intensity = next ? 0.45 : 1.8;
-      if (sunRef.current) sunRef.current.intensity = next ? 0.35 : 2.6;
+      if (sceneRef.current) {
+        sceneRef.current.background = new THREE.Color(next ? '#06080e' : '#d8deda');
+      }
+      if (hemiRef.current) {
+        hemiRef.current.color.set(next ? 0x18243b : 0xffffff);
+        hemiRef.current.groundColor.set(next ? 0x080b12 : 0x887969);
+        hemiRef.current.intensity = next ? 0.08 : 1.8;
+      }
+      if (sunRef.current) {
+        sunRef.current.color.set(next ? 0x6080b0 : 0xffefd9);
+        sunRef.current.intensity = next ? 0.04 : 2.6;
+      }
       if (finishesRef.current) finishesRef.current.setNight(next);
       return next;
     });

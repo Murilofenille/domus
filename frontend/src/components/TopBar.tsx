@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, Power, Settings, Maximize, Minimize, Star, Home } from 'lucide-react';
+import { Wifi, Power, Settings, Maximize, Minimize, Home } from 'lucide-react';
 
 interface TopBarProps {
   isOnline: boolean;
@@ -9,8 +9,6 @@ interface TopBarProps {
   onToggleViewMode: () => void;
   onToggleAll: () => void;
   onOpenSettings: () => void;
-  onOpenReview?: () => void;
-  onOpenWifi?: () => void;
   onNavigateHome?: () => void;
 }
 
@@ -22,8 +20,6 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleViewMode,
   onToggleAll,
   onOpenSettings,
-  onOpenReview,
-  onOpenWifi,
   onNavigateHome
 }) => {
   const [time, setTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
@@ -52,13 +48,13 @@ export const TopBar: React.FC<TopBarProps> = ({
         await document.exitFullscreen();
       }
     } catch {
-      // Ignora se não permitido
+      // Ignora se não permitido pelo navegador
     }
   };
 
   return (
     <header className="topbar-container">
-      {/* Brand & Logotipo Domus */}
+      {/* Brand & Botão Início */}
       <div className="topbar-left">
         <div className="brand-logo">
           <img
@@ -87,16 +83,16 @@ export const TopBar: React.FC<TopBarProps> = ({
         )}
       </div>
 
-      {/* Estatísticas e Status */}
+      {/* Estatísticas, Status e Modo de Visualização */}
       <div className="topbar-center">
         <div className={`status-pill ${isOnline ? 'online' : 'offline'}`}>
-          <Wifi size={14} className={isOnline ? 'animate-pulse' : ''} />
+          <Wifi size={13} className={isOnline ? 'animate-pulse' : ''} />
           <span>{isOnline ? 'ONLINE' : 'CONECTANDO...'}</span>
         </div>
 
         <div className="light-counter-pill">
-          <span className="counter-dot" style={{ background: activeLightsCount > 0 ? '#FFB703' : '#94A3B8' }} />
-          <span>{activeLightsCount} de {totalLightsCount} luzes acesas</span>
+          <span className={`counter-dot ${activeLightsCount > 0 ? 'active' : ''}`} />
+          <span>{activeLightsCount} de {totalLightsCount} luzes</span>
         </div>
 
         {/* Alternador de Visualização 2D / 3D */}
@@ -120,33 +116,10 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Ações Rápidas & Relógio */}
       <div className="topbar-right">
-        {onOpenWifi && (
-          <button
-            onClick={onOpenWifi}
-            className="topbar-wifi-btn"
-            title="Conectar ao Wi-Fi da Área de Lazer"
-          >
-            <Wifi size={14} className="text-blue-400" />
-            <span>Wi-Fi</span>
-          </button>
-        )}
-
-        {onOpenReview && (
-          <button
-            onClick={onOpenReview}
-            className="topbar-review-btn"
-            title="Avaliar nossa Área de Lazer no Google Maps"
-          >
-            <Star size={14} fill="#F59E0B" color="#F59E0B" />
-            <span>Avaliar</span>
-          </button>
-        )}
-
         <button
           onClick={handleToggleFullscreen}
-          className="topbar-settings-btn"
-          title={isFullscreen ? "Sair da Tela Cheia" : "Tela Cheia Total (Ocultar Barras do Android)"}
-          style={{ padding: '8px 10px' }}
+          className="topbar-icon-btn"
+          title={isFullscreen ? "Sair da Tela Cheia" : "Tela Cheia Total"}
         >
           {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
         </button>
@@ -162,8 +135,8 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         <button
           onClick={onToggleAll}
-          className="quick-action-btn"
-          title={activeLightsCount > 0 ? "Desligar todas" : "Ligar todas"}
+          className={`quick-action-btn ${activeLightsCount > 0 ? 'has-on' : 'all-off'}`}
+          title={activeLightsCount > 0 ? "Desligar todas as luzes" : "Ligar todas as luzes"}
         >
           <Power size={14} />
           <span>{activeLightsCount > 0 ? "Apagar Todas" : "Ligar Todas"}</span>

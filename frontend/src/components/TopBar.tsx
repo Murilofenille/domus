@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, Power, Settings } from 'lucide-react';
+import { Wifi, Power, Settings, Maximize, Minimize } from 'lucide-react';
 
 interface TopBarProps {
   isOnline: boolean;
@@ -17,6 +17,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenSettings
 }) => {
   const [time, setTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -24,6 +25,26 @@ export const TopBar: React.FC<TopBarProps> = ({
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  const handleToggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // Ignora se não permitido
+    }
+  };
 
   return (
     <header className="topbar-container">
@@ -53,6 +74,15 @@ export const TopBar: React.FC<TopBarProps> = ({
       {/* Ações Rápidas & Relógio */}
       <div className="topbar-right">
         <button
+          onClick={handleToggleFullscreen}
+          className="topbar-settings-btn"
+          title={isFullscreen ? "Sair da Tela Cheia" : "Tela Cheia Total (Ocultar Barras do Android)"}
+          style={{ padding: '8px 10px' }}
+        >
+          {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
+        </button>
+
+        <button
           onClick={onOpenSettings}
           className="topbar-settings-btn"
           title="Gerenciar Dispositivos e Canais"
@@ -77,3 +107,4 @@ export const TopBar: React.FC<TopBarProps> = ({
     </header>
   );
 };
+

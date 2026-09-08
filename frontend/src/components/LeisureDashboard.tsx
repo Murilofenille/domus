@@ -18,7 +18,9 @@ import {
   RotateCw,
   LogOut,
   Users,
-  Wifi
+  Wifi,
+  Layers,
+  ChevronRight
 } from 'lucide-react';
 import {
   isSpotifyConnected,
@@ -702,14 +704,24 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
               </div>
             </div>
 
-            {/* Lado Direito: Grande Card 'Acessar' (Redireciona para o Mapa/Planta Baixa) */}
+            {/* Lado Direito: Grande Card 'Planta Interativa' (Redireciona para o Mapa/Planta Baixa) */}
             <button
               type="button"
               onClick={onOpenFloorplan}
               className="quick-access-big-card"
               title="Acessar Planta Baixa 2D e Maquete 3D"
             >
-              <span className="quick-access-title">Acessar</span>
+              <div className="quick-access-content">
+                <div className="quick-access-icon-wrapper">
+                  <Layers size={36} className="quick-access-icon" />
+                </div>
+                <div className="quick-access-text-group">
+                  <span className="quick-access-title">Planta Interativa</span>
+                  <span className="quick-access-subtitle">
+                    Ver 2D & 3D <ChevronRight size={15} />
+                  </span>
+                </div>
+              </div>
             </button>
           </div>
 

@@ -14,6 +14,14 @@ try:
 except ImportError:
     TuyaOpenAPI = None
 
+try:
+    from api.ewelink_service import ewelink_instance
+except ImportError:
+    try:
+        from ewelink_service import ewelink_instance
+    except ImportError:
+        ewelink_instance = None
+
 load_dotenv()
 
 app = FastAPI(title="DOMUS | Smart Home", version="3.2.0", redirect_slashes=False)
@@ -246,6 +254,16 @@ async def get_status(device_id: Optional[str] = None):
                     k, dev_data = future.result()
                     new_cache[k] = dev_data
                     new_cache[dev_data["device_id"]] = dev_data
+
+                # Mesclar dispositivos eWeLink se configurado
+                if ewelink_instance and ewelink_instance.is_configured:
+                    try:
+                        ew_devs = ewelink_instance.fetch_devices()
+                        for dev_k, dev_val in ew_devs.items():
+                            new_cache[dev_k] = dev_val
+                    except Exception as ew_err:
+                        print(f"[eWeLink Vercel] Erro ao buscar dispositivos: {ew_err}")
+
                 memory_devices_cache = new_cache
                 last_cache_timestamp = now
         except Exception as e:
@@ -272,6 +290,26 @@ async def get_status(device_id: Optional[str] = None):
 @app.post("/api/command")
 @app.post("/command")
 async def send_command(req: CommandRequest):
+    # Atualização otimista imediata no cache de memória
+    if req.device_id in memory_devices_cache and "switches" in memory_devices_cache[req.device_id]:
+        memory_devices_cache[req.device_id]["switches"][req.code] = req.value
+        memory_devices_cache[req.device_id]["updated_at"] = time.time()
+
+    # Roteamento Inteligente: eWeLink vs Tuya
+    is_ewelink = (
+        req.device_id.startswith("1000") or
+        (req.device_id in memory_devices_cache and memory_devices_cache[req.device_id].get("brand") == "SONOFF") or
+        (ewelink_instance and req.device_id in ewelink_instance.cached_devices_meta)
+    )
+
+    if is_ewelink and ewelink_instance and ewelink_instance.is_configured:
+        success = ewelink_instance.set_switch(req.device_id, req.code, req.value)
+        if success:
+            return {"success": True, "provider": "ewelink", "device_id": req.device_id, "code": req.code, "value": req.value}
+        else:
+            raise HTTPException(status_code=400, detail="Falha ao acionar dispositivo no eWeLink")
+
+    # Caso contrário, roteia para Tuya
     payload = {
         "commands": [
             {
@@ -280,12 +318,6 @@ async def send_command(req: CommandRequest):
             }
         ]
     }
-
-    # Atualização otimista imediata no cache de memória
-    if req.device_id in memory_devices_cache and "switches" in memory_devices_cache[req.device_id]:
-        memory_devices_cache[req.device_id]["switches"][req.code] = req.value
-        memory_devices_cache[req.device_id]["updated_at"] = time.time()
-
     try:
         api = get_tuya()
         response = api.post(f"/v1.0/devices/{req.device_id}/commands", payload)
@@ -294,7 +326,7 @@ async def send_command(req: CommandRequest):
             response = api.post(f"/v1.0/devices/{req.device_id}/commands", payload)
 
         if response.get("success"):
-            return {"success": True, "device_id": req.device_id, "code": req.code, "value": req.value}
+            return {"success": True, "provider": "tuya", "device_id": req.device_id, "code": req.code, "value": req.value}
         else:
             raise HTTPException(status_code=400, detail=response)
     except Exception as e:
@@ -324,6 +356,23 @@ async def get_config():
             "hidden_channels": hidden_channels.get(key, []),
             "channel_rooms": channel_rooms.get(key, {})
         })
+
+    # Incluir dispositivos eWeLink na lista
+    if ewelink_instance and ewelink_instance.is_configured:
+        for dev_id, item_meta in ewelink_instance.cached_devices_meta.items():
+            cached = memory_devices_cache.get(dev_id) or {}
+            switches = cached.get("switches", {})
+            devices_list.append({
+                "key": dev_id,
+                "name": cached.get("name", item_meta.get("name", "Sonoff")),
+                "id": dev_id,
+                "online": cached.get("online", True),
+                "room_id": device_rooms.get(dev_id, "leisure"),
+                "switches": switches,
+                "custom_channel_names": channel_names.get(dev_id, {}),
+                "hidden_channels": hidden_channels.get(dev_id, []),
+                "channel_rooms": channel_rooms.get(dev_id, {})
+            })
 
     return {
         "device_rooms": device_rooms,

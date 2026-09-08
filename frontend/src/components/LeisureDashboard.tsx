@@ -338,10 +338,10 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
   };
 
   const fallbackSwitches: QuickDeviceSwitch[] = [
-    { id: '1', name: 'Luz Central Quarto', isOn: false, onToggle: () => {} },
-    { id: '2', name: 'Luz Central Sala', isOn: false, onToggle: () => {} },
-    { id: '3', name: 'Luz Gourmet', isOn: false, onToggle: () => {} },
-    { id: '4', name: 'Luz Suíte Master', isOn: false, onToggle: () => {} },
+    { id: '1000e4a34e_switch_1', name: 'Luz Escada', isOn: false, onToggle: () => {} },
+    { id: '1000e4bd27_switch_1', name: 'Arandela Piscina', isOn: false, onToggle: () => {} },
+    { id: '1000e4a34c_switch_1', name: 'Iluminação Salão Inferior', isOn: false, onToggle: () => {} },
+    { id: '1000e8f9b1_switch_1', name: 'Piscina', isOn: false, onToggle: () => {} },
   ];
   const displaySwitches = quickSwitches.length > 0 ? quickSwitches.slice(0, 4) : fallbackSwitches;
 

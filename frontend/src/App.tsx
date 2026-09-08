@@ -444,9 +444,14 @@ export function App() {
     return 32;
   }, [allDevicesData]);
 
-  // 4 Interruptores em destaque para o Dashboard da Área de Lazer (conforme mockup do usuário)
+  // 4 Interruptores em destaque para o Dashboard da Área de Lazer (prioriza dispositivos reais eWeLink)
   const quickSwitches = useMemo(() => {
     const candidates = [
+      { devKey: '1000e4a34e', code: 'switch_1', defaultName: 'Luz Escada' },
+      { devKey: '1000e4bd27', code: 'switch_1', defaultName: 'Arandela Piscina' },
+      { devKey: '1000e4a34c', code: 'switch_1', defaultName: 'Iluminação Salão Inferior' },
+      { devKey: '1000e8f9b1', code: 'switch_1', fallbackCode: 'switch_3', defaultName: 'Piscina' },
+      // Fallback para os circuitos da casa caso o eWeLink ainda esteja sincronizando
       { devKey: 'quarto_murilo', code: 'switch_1', defaultName: 'Luz Central Quarto' },
       { devKey: 'sala', code: 'switch_4', fallbackCode: 'switch_1', defaultName: 'Luz Central Sala' },
       { devKey: 'cozinha', code: 'switch_1', defaultName: 'Ilha Gourmet' },

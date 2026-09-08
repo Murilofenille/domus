@@ -24,8 +24,8 @@ export interface SpotifyTrack {
 }
 
 function getRedirectUri(): string {
-  // Retorna a URL base atual (sem parâmetros de busca ou hash)
-  return window.location.origin + (window.location.pathname === '/' ? '' : window.location.pathname);
+  // Retorna a URL base limpa com barra no final para casar exatamente com o dashboard do Spotify
+  return window.location.origin + '/';
 }
 
 function generateRandomString(length: number): string {
@@ -57,24 +57,37 @@ export async function loginWithSpotify(): Promise<void> {
 
   window.localStorage.setItem('spotify_code_verifier', codeVerifier);
 
+  const redirectUri = getRedirectUri();
+
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: SPOTIFY_CLIENT_ID,
     scope: SCOPES,
     code_challenge_method: 'S256',
     code_challenge: codeChallenge,
-    redirect_uri: getRedirectUri(),
+    redirect_uri: redirectUri,
+    state: codeVerifier, // Passamos o verifier dentro do state para resgatá-lo mesmo se abrir em outro app/janela!
   });
 
-  window.location.href = `${AUTH_ENDPOINT}?${params.toString()}`;
+  const authUrl = `${AUTH_ENDPOINT}?${params.toString()}`;
+
+  // Tenta abrir em popup para manter o PWA aberto
+  const popup = window.open(authUrl, 'spotify_login', 'width=500,height=700');
+  if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+    // Se o navegador bloquear o popup, navega diretamente
+    window.location.href = authUrl;
+  }
 }
 
 /**
  * Processa o código retornado na URL após login no Spotify
  */
-export async function handleSpotifyCallback(code: string): Promise<boolean> {
-  const codeVerifier = window.localStorage.getItem('spotify_code_verifier');
-  if (!codeVerifier) return false;
+export async function handleSpotifyCallback(code: string, stateVerifier?: string | null): Promise<boolean> {
+  const codeVerifier = stateVerifier || window.localStorage.getItem('spotify_code_verifier');
+  if (!codeVerifier) {
+    console.error('Code verifier não encontrado.');
+    return false;
+  }
 
   const payload = {
     method: 'POST',

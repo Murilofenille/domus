@@ -70,8 +70,24 @@ export function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
+    const stateVerifier = params.get('state');
+
     if (code) {
-      handleSpotifyCallback(code).then(() => {
+      handleSpotifyCallback(code, stateVerifier).then(() => {
+        // Notificar outras abas ou janela do PWA
+        try {
+          const bc = new BroadcastChannel('spotify_auth_channel');
+          bc.postMessage({ type: 'SPOTIFY_AUTH_SUCCESS' });
+          bc.close();
+        } catch {}
+
+        if (window.opener) {
+          try {
+            window.opener.postMessage({ type: 'SPOTIFY_AUTH_SUCCESS' }, '*');
+            window.close();
+          } catch {}
+        }
+
         window.history.replaceState({}, document.title, window.location.pathname);
       });
     }

@@ -29,6 +29,52 @@ export const SpotifyPlayer: React.FC = () => {
     setTrack(data);
   }, []);
 
+  // Escutar eventos de login vindos de outras abas/popups ou ao voltar o foco para o PWA
+  useEffect(() => {
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('spotify_auth_channel');
+      bc.onmessage = (event) => {
+        if (event.data?.type === 'SPOTIFY_AUTH_SUCCESS') {
+          setConnected(true);
+          syncPlayback();
+        }
+      };
+    } catch {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'spotify_access_token') {
+        if (e.newValue) {
+          setConnected(true);
+          syncPlayback();
+        } else {
+          setConnected(false);
+          setTrack(null);
+        }
+      }
+    };
+
+    const handleFocusOrVisible = () => {
+      if (document.visibilityState === 'visible') {
+        if (isSpotifyConnected()) {
+          setConnected(true);
+          syncPlayback();
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleFocusOrVisible);
+    document.addEventListener('visibilitychange', handleFocusOrVisible);
+
+    return () => {
+      bc?.close();
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocusOrVisible);
+      document.removeEventListener('visibilitychange', handleFocusOrVisible);
+    };
+  }, [syncPlayback]);
+
   useEffect(() => {
     if (!connected) return;
 

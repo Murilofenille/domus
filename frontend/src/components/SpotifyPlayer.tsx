@@ -19,6 +19,7 @@ import {
   Clock,
   RotateCw,
   AlertCircle,
+  ArrowLeft,
   X
 } from 'lucide-react';
 import {
@@ -33,6 +34,7 @@ import {
   transferSpotifyPlayback,
   setSpotifyVolume,
   fetchUserPlaylists,
+  fetchPlaylistTracks,
   fetchRecentlyPlayed,
   searchSpotify,
   playSpotifyContext,
@@ -42,6 +44,7 @@ import {
   type SpotifyTrack,
   type SpotifyDevice,
   type SpotifyPlaylist,
+  type SpotifyPlaylistTrack,
   type SpotifySearchItem
 } from '../services/spotify';
 
@@ -59,6 +62,10 @@ export const SpotifyPlayer: React.FC = () => {
   // Dados da Biblioteca e Aparelhos
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
   const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<SpotifyPlaylist | null>(null);
+  const [playlistTracks, setPlaylistTracks] = useState<SpotifyPlaylistTrack[]>([]);
+  const [isLoadingTracks, setIsLoadingTracks] = useState<boolean>(false);
+
   const [recentTracks, setRecentTracks] = useState<SpotifySearchItem[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchResults, setSearchResults] = useState<SpotifySearchItem[]>([]);
@@ -120,7 +127,7 @@ export const SpotifyPlayer: React.FC = () => {
     }
   }, []);
 
-  // Escutar eventos de login vindos de outras abas/popups ou foco
+  // Escutar eventos de login vindos de outras abas ou foco
   useEffect(() => {
     let bc: BroadcastChannel | null = null;
     try {
@@ -206,12 +213,22 @@ export const SpotifyPlayer: React.FC = () => {
   // Carregar playlists ou recentes
   const loadLibrary = async (tab: 'playlists' | 'recent' | 'search') => {
     setLibraryTab(tab);
+    setSelectedPlaylist(null); // Volta para grade de playlists se mudar de aba
     setIsLibraryOpen(true);
     if (tab === 'playlists' && playlists.length === 0) {
       await refreshPlaylists();
     } else if (tab === 'recent' && recentTracks.length === 0) {
       await refreshRecent();
     }
+  };
+
+  // Abrir uma playlist específica e carregar as músicas dela
+  const handleOpenPlaylist = async (pl: SpotifyPlaylist) => {
+    setSelectedPlaylist(pl);
+    setIsLoadingTracks(true);
+    const tracks = await fetchPlaylistTracks(pl.id);
+    setPlaylistTracks(tracks);
+    setIsLoadingTracks(false);
   };
 
   // Debounced search
@@ -239,7 +256,7 @@ export const SpotifyPlayer: React.FC = () => {
 
     const ok = await toggleSpotifyPlay(prevPlaying);
     if (!ok) {
-      showAlert('Não foi possível alternar a música. Verifique se o Spotify está aberto ou tente transferir para este dispositivo.');
+      showAlert('Não foi possível alternar a música. Verifique se o Spotify está ativo ou selecione um aparelho.');
     }
     setTimeout(syncPlayback, 500);
     setIsBusy(false);
@@ -275,7 +292,7 @@ export const SpotifyPlayer: React.FC = () => {
   const handlePlayOnThisDevice = async () => {
     const devId = localDeviceId || getLocalDeviceId();
     if (!devId) {
-      showAlert('O player deste navegador está carregando ou sua conta não possui Spotify Premium.');
+      showAlert('O player deste dispositivo requer conta Spotify Premium para tocar som direto no navegador.');
       return;
     }
     await handleTransferDevice(devId);
@@ -286,6 +303,7 @@ export const SpotifyPlayer: React.FC = () => {
     await setSpotifyVolume(newVol);
   };
 
+  // Tocar a playlist inteira
   const handlePlayPlaylist = async (uri: string) => {
     setIsBusy(true);
     const result = await playSpotifyContext(uri, track?.deviceId || localDeviceId || undefined);
@@ -295,7 +313,7 @@ export const SpotifyPlayer: React.FC = () => {
       if (result.error === 'PREMIUM_REQUIRED') {
         showAlert('⚠️ O Spotify exige uma conta Premium para iniciar músicas remotamente por API.');
       } else if (result.error === 'NO_ACTIVE_DEVICE') {
-        showAlert('⚠️ Nenhum aparelho com Spotify encontrado aberto. Abra o Spotify no seu celular/PC ou conecte o som deste dispositivo.');
+        showAlert('⚠️ Nenhum aparelho com Spotify encontrado aberto. Abra o Spotify ou clique em "Tocar neste dispositivo".');
       } else {
         showAlert(result.message || 'Erro ao iniciar playlist.');
       }
@@ -306,6 +324,28 @@ export const SpotifyPlayer: React.FC = () => {
     setTimeout(syncPlayback, 700);
   };
 
+  // Tocar uma música específica de dentro da playlist
+  const handlePlayTrackInPlaylist = async (playlistUri: string, trackUri: string) => {
+    setIsBusy(true);
+    const result = await playSpotifyContext(playlistUri, track?.deviceId || localDeviceId || undefined, trackUri);
+    setIsBusy(false);
+
+    if (!result.success) {
+      if (result.error === 'PREMIUM_REQUIRED') {
+        showAlert('⚠️ O Spotify exige uma conta Premium para iniciar músicas remotamente por API.');
+      } else if (result.error === 'NO_ACTIVE_DEVICE') {
+        showAlert('⚠️ Nenhum aparelho com Spotify encontrado aberto. Abra o Spotify ou clique em "Tocar neste dispositivo".');
+      } else {
+        showAlert(result.message || 'Erro ao iniciar música.');
+      }
+      return;
+    }
+
+    setIsLibraryOpen(false);
+    setTimeout(syncPlayback, 700);
+  };
+
+  // Tocar faixa avulsa (de busca ou recentes)
   const handlePlayTrack = async (uri: string) => {
     setIsBusy(true);
     const result = await playSpotifyTrack(uri, track?.deviceId || localDeviceId || undefined);
@@ -315,7 +355,7 @@ export const SpotifyPlayer: React.FC = () => {
       if (result.error === 'PREMIUM_REQUIRED') {
         showAlert('⚠️ O Spotify exige uma conta Premium para iniciar músicas remotamente por API.');
       } else if (result.error === 'NO_ACTIVE_DEVICE') {
-        showAlert('⚠️ Nenhum aparelho com Spotify encontrado aberto. Abra o Spotify no seu celular/PC ou conecte o som deste dispositivo.');
+        showAlert('⚠️ Nenhum aparelho com Spotify encontrado aberto. Abra o Spotify ou clique em "Tocar neste dispositivo".');
       } else {
         showAlert(result.message || 'Erro ao iniciar música.');
       }
@@ -332,6 +372,11 @@ export const SpotifyPlayer: React.FC = () => {
     setTrack(null);
     setIsDevicesOpen(false);
     setIsLibraryOpen(false);
+  };
+
+  const handleReconnect = () => {
+    logoutSpotify();
+    loginWithSpotify();
   };
 
   const formatTime = (ms: number) => {
@@ -389,6 +434,9 @@ export const SpotifyPlayer: React.FC = () => {
           </button>
           <button onClick={loadDevices} className="spotify-btn-ghost" title="Aparelhos de Som">
             <Speaker size={14} />
+          </button>
+          <button onClick={handleReconnect} className="spotify-btn-ghost" title="Reconectar / Renovar Permissões">
+            <RotateCw size={13} />
           </button>
           <button onClick={handleLogout} className="spotify-btn-ghost" title="Desconectar Spotify">
             <LogOut size={14} />
@@ -472,7 +520,7 @@ export const SpotifyPlayer: React.FC = () => {
               <div className="spotify-empty-dev-box">
                 <p className="spotify-empty-text">Nenhum aparelho ativo detectado.</p>
                 <span className="spotify-dev-hint">
-                  Abra o Spotify no seu celular, TV ou Echo Dot para ele aparecer aqui.
+                  Abra o Spotify no celular, Smart TV ou Echo Dot para ele aparecer aqui.
                 </span>
               </div>
             ) : (
@@ -515,7 +563,7 @@ export const SpotifyPlayer: React.FC = () => {
     );
   }
 
-  // 5. Modal de Biblioteca (Playlists, Recentes, Busca)
+  // 5. Modal de Biblioteca (Playlists, Músicas da Playlist, Recentes, Busca)
   function renderLibraryModal() {
     return (
       <div className="spotify-modal-overlay" onClick={() => setIsLibraryOpen(false)}>
@@ -539,7 +587,7 @@ export const SpotifyPlayer: React.FC = () => {
               </button>
               <button
                 className={`spotify-tab-btn ${libraryTab === 'search' ? 'active' : ''}`}
-                onClick={() => setLibraryTab('search')}
+                onClick={() => loadLibrary('search')}
               >
                 <Search size={16} />
                 <span>Buscar</span>
@@ -547,7 +595,7 @@ export const SpotifyPlayer: React.FC = () => {
             </div>
 
             <div className="spotify-lib-header-actions">
-              {libraryTab === 'playlists' && (
+              {libraryTab === 'playlists' && !selectedPlaylist && (
                 <button
                   onClick={refreshPlaylists}
                   className={`spotify-btn-icon-sm ${isLoadingPlaylists ? 'animate-spin' : ''}`}
@@ -573,48 +621,141 @@ export const SpotifyPlayer: React.FC = () => {
 
           {/* Conteúdo da Aba */}
           <div className="spotify-library-content">
-            {/* Aba 1: Playlists */}
+            {/* Aba 1: Playlists (Grade ou Visão Detalhada com Lista de Músicas) */}
             {libraryTab === 'playlists' && (
-              <div className="spotify-playlists-grid">
-                {isLoadingPlaylists ? (
-                  <div className="spotify-loading-state">
-                    <RotateCw size={24} className="animate-spin text-amber-500" />
-                    <p className="spotify-empty-text">Buscando playlists da sua conta...</p>
-                  </div>
-                ) : playlists.length === 0 ? (
-                  <div className="spotify-empty-state">
-                    <Music size={32} className="text-gray-500" />
-                    <p className="spotify-empty-text">Nenhuma playlist encontrada na sua biblioteca.</p>
-                    <button onClick={refreshPlaylists} className="spotify-retry-btn">
-                      Tentar Novamente
+              selectedPlaylist ? (
+                /* Detalhes da Playlist com Lista de Músicas para Escolher */
+                <div className="spotify-playlist-detail-view">
+                  <div className="spotify-playlist-detail-header">
+                    <button
+                      onClick={() => setSelectedPlaylist(null)}
+                      className="spotify-back-btn"
+                      title="Voltar para todas as playlists"
+                    >
+                      <ArrowLeft size={16} />
+                      <span>Voltar para Playlists</span>
                     </button>
                   </div>
-                ) : (
-                  playlists.map((pl) => (
-                    <div
-                      key={pl.id}
-                      onClick={() => handlePlayPlaylist(pl.uri)}
-                      className="spotify-playlist-card"
-                      title={pl.name}
-                    >
-                      <div className="spotify-pl-cover-wrapper">
-                        {pl.image ? (
-                          <img src={pl.image} alt={pl.name} className="spotify-pl-cover" />
-                        ) : (
-                          <div className="spotify-pl-placeholder">
-                            <Music size={28} />
+
+                  <div className="spotify-playlist-detail-banner">
+                    {selectedPlaylist.image ? (
+                      <img
+                        src={selectedPlaylist.image}
+                        alt={selectedPlaylist.name}
+                        className="spotify-detail-cover"
+                      />
+                    ) : (
+                      <div className="spotify-detail-cover-placeholder">
+                        <Music size={32} />
+                      </div>
+                    )}
+                    <div className="spotify-detail-meta">
+                      <span className="spotify-detail-tag">PLAYLIST</span>
+                      <h4 className="spotify-detail-title">{selectedPlaylist.name}</h4>
+                      <span className="spotify-detail-sub">{selectedPlaylist.tracksTotal} faixas no total</span>
+                      <button
+                        onClick={() => handlePlayPlaylist(selectedPlaylist.uri)}
+                        className="spotify-detail-play-all"
+                        title="Tocar a playlist inteira a partir do início"
+                      >
+                        <Play size={16} fill="currentColor" />
+                        <span>Tocar Playlist Inteira</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="spotify-tracks-list">
+                    {isLoadingTracks ? (
+                      <div className="spotify-loading-state">
+                        <RotateCw size={24} className="animate-spin text-amber-500" />
+                        <p className="spotify-empty-text">Carregando músicas da playlist...</p>
+                      </div>
+                    ) : playlistTracks.length === 0 ? (
+                      <p className="spotify-empty-text">Nenhuma música encontrada nesta playlist.</p>
+                    ) : (
+                      playlistTracks.map((trk, idx) => (
+                        <div
+                          key={`${trk.id}-${idx}`}
+                          onClick={() => handlePlayTrackInPlaylist(selectedPlaylist.uri, trk.uri)}
+                          className="spotify-track-row"
+                          title={`Tocar ${trk.name}`}
+                        >
+                          <span className="spotify-track-num">{idx + 1}</span>
+                          {trk.albumArt ? (
+                            <img src={trk.albumArt} alt={trk.name} className="spotify-row-art" />
+                          ) : (
+                            <div className="spotify-row-art-ph">
+                              <Music size={14} />
+                            </div>
+                          )}
+                          <div className="spotify-row-details">
+                            <span className="spotify-row-name">{trk.name}</span>
+                            <span className="spotify-row-artist">{trk.artists}</span>
                           </div>
-                        )}
-                        <button className="spotify-pl-play-btn" title="Tocar Playlist">
-                          <Play size={18} fill="currentColor" />
+                          <span className="spotify-row-duration">{formatTime(trk.durationMs)}</span>
+                          <button className="spotify-row-play">
+                            <Play size={14} fill="currentColor" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Grade de Playlists */
+                <div className="spotify-playlists-grid">
+                  {isLoadingPlaylists ? (
+                    <div className="spotify-loading-state">
+                      <RotateCw size={24} className="animate-spin text-amber-500" />
+                      <p className="spotify-empty-text">Buscando playlists da sua conta...</p>
+                    </div>
+                  ) : playlists.length === 0 ? (
+                    <div className="spotify-empty-state">
+                      <Music size={32} className="text-gray-500" />
+                      <p className="spotify-empty-text">Nenhuma playlist encontrada ou permissão expirada.</p>
+                      <div className="spotify-empty-actions">
+                        <button onClick={refreshPlaylists} className="spotify-retry-btn">
+                          Tentar Novamente
+                        </button>
+                        <button onClick={handleReconnect} className="spotify-reconnect-btn">
+                          Reconectar Spotify
                         </button>
                       </div>
-                      <h5 className="spotify-pl-title">{pl.name}</h5>
-                      <span className="spotify-pl-tracks">{pl.tracksTotal} músicas</span>
                     </div>
-                  ))
-                )}
-              </div>
+                  ) : (
+                    playlists.map((pl) => (
+                      <div
+                        key={pl.id}
+                        onClick={() => handleOpenPlaylist(pl)}
+                        className="spotify-playlist-card"
+                        title={`Abrir playlist ${pl.name}`}
+                      >
+                        <div className="spotify-pl-cover-wrapper">
+                          {pl.image ? (
+                            <img src={pl.image} alt={pl.name} className="spotify-pl-cover" />
+                          ) : (
+                            <div className="spotify-pl-placeholder">
+                              <Music size={28} />
+                            </div>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePlayPlaylist(pl.uri);
+                            }}
+                            className="spotify-pl-play-btn"
+                            title="Tocar Playlist Direto"
+                          >
+                            <Play size={18} fill="currentColor" />
+                          </button>
+                        </div>
+                        <h5 className="spotify-pl-title">{pl.name}</h5>
+                        <span className="spotify-pl-tracks">{pl.tracksTotal} músicas • Toque p/ ver faixas</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )
             )}
 
             {/* Aba 2: Músicas Recentes */}
@@ -628,10 +769,15 @@ export const SpotifyPlayer: React.FC = () => {
                 ) : recentTracks.length === 0 ? (
                   <div className="spotify-empty-state">
                     <Clock size={32} className="text-gray-500" />
-                    <p className="spotify-empty-text">Nenhuma música recente encontrada.</p>
-                    <button onClick={refreshRecent} className="spotify-retry-btn">
-                      Tentar Novamente
-                    </button>
+                    <p className="spotify-empty-text">Nenhuma música recente encontrada ou sessão expirada.</p>
+                    <div className="spotify-empty-actions">
+                      <button onClick={refreshRecent} className="spotify-retry-btn">
+                        Tentar Novamente
+                      </button>
+                      <button onClick={handleReconnect} className="spotify-reconnect-btn">
+                        Reconectar Spotify
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   recentTracks.map((trk) => (
@@ -700,7 +846,12 @@ export const SpotifyPlayer: React.FC = () => {
                       </div>
                     ))
                   ) : searchQuery.trim() ? (
-                    <p className="spotify-empty-text">Nenhuma música encontrada para "{searchQuery}".</p>
+                    <div className="spotify-empty-state">
+                      <p className="spotify-empty-text">Nenhuma música encontrada para "{searchQuery}".</p>
+                      <button onClick={handleReconnect} className="spotify-reconnect-btn">
+                        Reconectar Spotify
+                      </button>
+                    </div>
                   ) : (
                     <p className="spotify-empty-text">Digite o nome de uma música, artista ou banda acima.</p>
                   )}

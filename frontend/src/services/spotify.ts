@@ -59,6 +59,16 @@ export interface SpotifyPlaylist {
   tracksTotal: number;
 }
 
+export interface SpotifyPlaylistTrack {
+  id: string;
+  name: string;
+  artists: string;
+  album: string;
+  albumArt: string;
+  uri: string;
+  durationMs: number;
+}
+
 export interface SpotifySearchItem {
   id: string;
   name: string;
@@ -99,6 +109,7 @@ function base64encode(input: ArrayBuffer): string {
 
 /**
  * Inicia o fluxo de autorização PKCE com o Spotify
+ * Em PWA ou mobile, faz o redirecionamento direto na mesma janela para garantir retorno limpo
  */
 export async function loginWithSpotify(): Promise<void> {
   const codeVerifier = generateRandomString(64);
@@ -121,10 +132,8 @@ export async function loginWithSpotify(): Promise<void> {
 
   const authUrl = `${AUTH_ENDPOINT}?${params.toString()}`;
 
-  const popup = window.open(authUrl, 'spotify_login', 'width=500,height=700');
-  if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-    window.location.href = authUrl;
-  }
+  // Sempre navega diretamente na janela do app para garantir que o PWA receba o redirect
+  window.location.href = authUrl;
 }
 
 /**
@@ -228,6 +237,9 @@ export async function getValidAccessToken(): Promise<string | null> {
   if (Date.now() > expiresAt - 120000) {
     const refreshed = await refreshAccessToken();
     if (refreshed) return refreshed;
+    // Se a renovação falhou, limpa sessão morta
+    logoutSpotify();
+    return null;
   }
 
   return token;
@@ -265,6 +277,7 @@ export async function spotifyFetch(url: string, options: RequestInit = {}): Prom
       }
     } else {
       console.warn('Não foi possível renovar sessão do Spotify.');
+      logoutSpotify();
       return res;
     }
   }
@@ -435,6 +448,38 @@ export async function fetchUserPlaylists(): Promise<SpotifyPlaylist[]> {
 }
 
 /**
+ * Busca as faixas de uma playlist específica para permitir ao usuário escolher músicas individuais
+ */
+export async function fetchPlaylistTracks(playlistId: string): Promise<SpotifyPlaylistTrack[]> {
+  const res = await spotifyFetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`);
+  if (!res || !res.ok) {
+    console.warn(`Falha ao buscar faixas da playlist ${playlistId}. Status:`, res?.status);
+    return [];
+  }
+
+  try {
+    const data = await res.json();
+    return (data.items || [])
+      .filter((item: any) => item && item.track && item.track.id)
+      .map((item: any) => {
+        const t = item.track;
+        return {
+          id: t.id,
+          name: t.name,
+          artists: (t.artists || []).map((a: any) => a.name).join(', '),
+          album: t.album?.name || '',
+          albumArt: t.album?.images?.[0]?.url || t.album?.images?.[1]?.url || '',
+          uri: t.uri,
+          durationMs: t.duration_ms || 0,
+        };
+      });
+  } catch (err) {
+    console.error('Erro ao processar faixas da playlist:', err);
+    return [];
+  }
+}
+
+/**
  * Busca as músicas tocadas recentemente
  */
 export async function fetchRecentlyPlayed(): Promise<SpotifySearchItem[]> {
@@ -470,7 +515,7 @@ export async function searchSpotify(query: string): Promise<SpotifySearchItem[]>
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const res = await spotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(trimmed)}&type=track&limit=20`);
+  const res = await spotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(trimmed)}&type=track&limit=25`);
   if (!res || !res.ok) {
     console.warn('Falha na busca Spotify. Status:', res?.status);
     return [];
@@ -507,22 +552,31 @@ async function resolveTargetDeviceId(providedDeviceId?: string): Promise<string 
 }
 
 /**
- * Toca um contexto (Playlist ou Álbum) com resolução automática de dispositivo e captura de erros
+ * Toca um contexto (Playlist ou Álbum), opcionalmente a partir de uma faixa específica
  */
-export async function playSpotifyContext(contextUri: string, targetDeviceId?: string): Promise<PlayResult> {
+export async function playSpotifyContext(
+  contextUri: string,
+  targetDeviceId?: string,
+  offsetTrackUri?: string
+): Promise<PlayResult> {
   const resolvedDeviceId = await resolveTargetDeviceId(targetDeviceId);
   const url = resolvedDeviceId
     ? `https://api.spotify.com/v1/me/player/play?device_id=${resolvedDeviceId}`
     : 'https://api.spotify.com/v1/me/player/play';
 
+  const body: any = { context_uri: contextUri };
+  if (offsetTrackUri) {
+    body.offset = { uri: offsetTrackUri };
+  }
+
   const res = await spotifyFetch(url, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ context_uri: contextUri }),
+    body: JSON.stringify(body),
   });
 
   if (!res) {
-    return { success: false, error: 'AUTH_ERROR', message: 'Sessão do Spotify não autenticada.' };
+    return { success: false, error: 'AUTH_ERROR', message: 'Sessão do Spotify não autenticada ou expirada.' };
   }
 
   if (res.status === 204 || res.ok) {
@@ -564,7 +618,7 @@ export async function playSpotifyTrack(trackUri: string, targetDeviceId?: string
   });
 
   if (!res) {
-    return { success: false, error: 'AUTH_ERROR', message: 'Sessão do Spotify não autenticada.' };
+    return { success: false, error: 'AUTH_ERROR', message: 'Sessão do Spotify não autenticada ou expirada.' };
   }
 
   if (res.status === 204 || res.ok) {
@@ -617,7 +671,7 @@ export interface WebPlayerCallbacks {
  */
 export function initSpotifyWebPlayer(callbacks: WebPlayerCallbacks): void {
   if (!isSpotifyConnected()) return;
-  if (webPlayerInstance) return; // Já inicializado
+  if (webPlayerInstance) return;
 
   const setupPlayer = () => {
     if (!window.Spotify || !window.Spotify.Player) {

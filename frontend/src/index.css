@@ -1869,6 +1869,166 @@ html, body, #root {
   margin-top: 2px;
 }
 
+/* Detalhes da Playlist & Escolha de Músicas */
+.spotify-playlist-detail-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.spotify-playlist-detail-header {
+  display: flex;
+  align-items: center;
+}
+
+.spotify-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.spotify-back-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateX(-2px);
+}
+
+.spotify-playlist-detail-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.spotify-detail-cover {
+  width: 90px;
+  height: 90px;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.spotify-detail-cover-placeholder {
+  width: 90px;
+  height: 90px;
+  border-radius: 12px;
+  background: #282828;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94A3B8;
+}
+
+.spotify-detail-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spotify-detail-tag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #1DB954;
+}
+
+.spotify-detail-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #FFFFFF;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.spotify-detail-sub {
+  font-size: 11px;
+  color: #94A3B8;
+  margin-bottom: 4px;
+}
+
+.spotify-detail-play-all {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #1DB954;
+  color: #000000;
+  border: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(29, 185, 84, 0.35);
+  transition: all 0.2s ease;
+}
+
+.spotify-detail-play-all:hover {
+  background: #1ed760;
+  transform: scale(1.04);
+}
+
+.spotify-track-num {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.spotify-row-art-ph {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: #282828;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94A3B8;
+  flex-shrink: 0;
+}
+
+.spotify-empty-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.spotify-reconnect-btn {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #FBBF24;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.spotify-reconnect-btn:hover {
+  background: #F59E0B;
+  color: #000000;
+}
+
 /* Lista de Músicas (Recentes & Busca) */
 .spotify-tracks-list, .spotify-search-results {
   display: flex;

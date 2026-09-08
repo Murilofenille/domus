@@ -6,9 +6,10 @@ import { Text } from '@react-three/drei';
 
 interface CutawayHouseProps {
   lightStates: Record<string, boolean>;
-  onToggleLight: (pinId: string) => void;
+  onToggleLight?: (pinId: string) => void;
   onSelectRoom?: (room: Room) => void;
   selectedRoomId?: string | null;
+  roomActiveStates?: Record<string, boolean>;
 }
 
 /**
@@ -338,9 +339,9 @@ function MinimalFurniture() {
 
 export const CutawayHouse: React.FC<CutawayHouseProps> = ({
   lightStates,
-  onToggleLight,
   onSelectRoom,
-  selectedRoomId
+  selectedRoomId,
+  roomActiveStates
 }) => {
   return (
     // Casa 10m x 25m centralizada na origem (0, 0, 0)
@@ -398,19 +399,22 @@ export const CutawayHouse: React.FC<CutawayHouseProps> = ({
       {/* 3. Mobília Interna Minimalista */}
       <MinimalFurniture />
 
-      {/* 4. Pins Interativos de Automação Tuya */}
+      {/* 4. Pins Interativos de Automação Tuya (Micro-Discos Minimalistas) */}
       {automationPins.map((pin: AutomationPinItem) => {
-        const isLightOn = !!lightStates[pin.id];
-        const isReal = !!pin.deviceId;
+        const isRoomActive = !!roomActiveStates?.[pin.roomId] || !!lightStates[pin.id];
+        const room = rooms.find(r => r.id === pin.roomId);
 
         return (
           <AutomationPin
             key={pin.id}
             position={pin.position}
-            name={pin.name}
-            isOn={isLightOn}
-            isRealDevice={isReal}
-            onToggle={() => onToggleLight(pin.id)}
+            name={room?.name || pin.name}
+            isOn={isRoomActive}
+            onClick={() => {
+              if (room && onSelectRoom) {
+                onSelectRoom(room);
+              }
+            }}
           />
         );
       })}

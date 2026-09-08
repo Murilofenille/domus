@@ -341,6 +341,35 @@ export function App() {
     return result;
   }, [selectedRoom, devicesList, allDevicesData, channelNames, hiddenChannels, channelRooms, deviceRooms]);
 
+  // Mapa de atividade de cada cômodo: true se QUALQUER luz/canal daquele cômodo estiver ligado
+  const roomActiveStates: Record<string, boolean> = useMemo(() => {
+    const map: Record<string, boolean> = {};
+
+    // 1. Verificar através de allDevicesData e mapeamento de cômodos (canais reais Tuya)
+    devicesList.forEach(dev => {
+      const devSwitches = allDevicesData[dev.key] || dev.switches || {};
+      const devRoom = deviceRooms[dev.key] || dev.room_id;
+
+      Object.entries(devSwitches).forEach(([code, val]) => {
+        if (code.startsWith('switch_') && Boolean(val)) {
+          const specificRoom = channelRooms[dev.key]?.[code] || devRoom;
+          if (specificRoom) {
+            map[specificRoom] = true;
+          }
+        }
+      });
+    });
+
+    // 2. Verificar também através de lightStates dos pins da maquete
+    automationPins.forEach(pin => {
+      if (lightStates[pin.id]) {
+        map[pin.roomId] = true;
+      }
+    });
+
+    return map;
+  }, [devicesList, allDevicesData, deviceRooms, channelRooms, lightStates]);
+
   return (
     <div className="app-viewport">
       {/* HUD Superior */}
@@ -405,6 +434,7 @@ export function App() {
           {/* Maquete da Casa com Cômodos e Mobília */}
           <CutawayHouse
             lightStates={lightStates}
+            roomActiveStates={roomActiveStates}
             onToggleLight={handleTogglePinLight}
             onSelectRoom={(room) => setSelectedRoom(room)}
             selectedRoomId={selectedRoom?.id}

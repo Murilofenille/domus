@@ -6,18 +6,16 @@ import * as THREE from 'three';
 
 interface AutomationPinProps {
   position: [number, number, number];
-  name: string;
+  name?: string;
   isOn: boolean;
-  onToggle: () => void;
-  isRealDevice?: boolean;
+  onClick: () => void;
 }
 
 export const AutomationPin: React.FC<AutomationPinProps> = ({
   position,
   name,
   isOn,
-  onToggle,
-  isRealDevice = false
+  onClick
 }) => {
   const groupRef = useRef<THREE.Group>(null);
 
@@ -25,7 +23,7 @@ export const AutomationPin: React.FC<AutomationPinProps> = ({
   useFrame((state) => {
     if (groupRef.current) {
       const t = state.clock.getElapsedTime();
-      groupRef.current.position.y = position[1] + Math.sin(t * 1.6 + position[0]) * 0.03;
+      groupRef.current.position.y = position[1] + Math.sin(t * 1.5 + position[0]) * 0.025;
     }
   });
 
@@ -55,32 +53,26 @@ export const AutomationPin: React.FC<AutomationPinProps> = ({
         </mesh>
       )}
 
-      {/* Plaqueta de Vidro Flutuante Estilo Vision Pro / AR (Sem interruptor mini) */}
+      {/* Micro-Disco Circular Minimalista de Vidro (Apenas Ícone de Lâmpada) */}
       <Html
         position={[0, 0, 0]}
         center
         distanceFactor={22}
         style={{ pointerEvents: 'auto', userSelect: 'none' }}
       >
-        <div
+        <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onToggle();
+            onClick();
           }}
-          className={`ar-room-badge ${isOn ? 'is-on' : 'is-off'}`}
-          title={`${name}: Toque para ${isOn ? 'Desligar' : 'Ligar'}`}
+          className={`ar-lamp-orb ${isOn ? 'is-on' : 'is-off'}`}
+          title={name ? `${name}: Toque para abrir controles` : 'Toque para abrir controles'}
         >
-          <div className="ar-badge-icon-box">
-            <Lightbulb size={13} className="ar-badge-icon" />
-          </div>
-          <span className="ar-badge-name">{name}</span>
-          {isRealDevice && (
-            <span className="ar-badge-tag">TUYA</span>
-          )}
-        </div>
+          <Lightbulb size={13} className="ar-lamp-icon" />
+          {isOn && <span className="ar-lamp-glow-ring" />}
+        </button>
       </Html>
     </group>
   );
 };
-
-

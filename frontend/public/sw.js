@@ -1,5 +1,5 @@
 // DOMUS Smart Home - Service Worker
-const CACHE_NAME = 'domus-v1.4';
+const CACHE_NAME = 'domus-v1.5';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',

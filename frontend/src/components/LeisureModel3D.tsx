@@ -62,19 +62,15 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     const canvas = canvasRef.current;
     const container = containerRef.current;
 
-    // Detecção inteligente de tablets/mobile para ajuste de pixel ratio ótimo sem perda de nitidez
-    const isMobileOrTablet = /Android|iPhone|iPad|iPod|Tablet/i.test(navigator.userAgent) ||
-      (navigator.maxTouchPoints > 1 && window.innerWidth <= 1366);
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
-      antialias: !isMobileOrTablet,
+      antialias: true,
       alpha: false,
       powerPreference: 'high-performance',
-      precision: 'highp' // CRUCIAL: 'highp' evita z-fighting e artefatos escuros no depth buffer
+      precision: 'highp'
     });
-    // No tablet/celular, pixelRatio 1.0 reduz em até 75% o esforço da GPU e crava 60 FPS
-    renderer.setPixelRatio(isMobileOrTablet ? 1.0 : Math.min(window.devicePixelRatio, 1.25));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Otimização crucial: a luz solar e a arquitetura são estáticas; renderiza o shadow map sob demanda
@@ -284,7 +280,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
       const h = container.clientHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setPixelRatio(isMobileOrTablet ? 1.0 : Math.min(window.devicePixelRatio, 1.25));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
       renderer.setSize(w, h, false);
       updatePins();
     };

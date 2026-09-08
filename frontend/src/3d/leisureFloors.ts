@@ -1,146 +1,116 @@
 import * as THREE from 'three';
 
-// Textura procedural para porcelanato interno (Salão)
-function createInsideTileTexture(): THREE.CanvasTexture {
+function floorMap(wood: boolean): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 512;
-  const ctx = canvas.getContext('2d')!;
-
-  ctx.fillStyle = '#b3aca0';
-  ctx.fillRect(0, 0, 512, 512);
-
-  // Placas de porcelanato 60x60
-  const size = 128;
-  for (let y = 0; y < 512; y += size) {
-    for (let x = 0; x < 512; x += size) {
-      ctx.fillStyle = '#c0b9ad';
-      ctx.fillRect(x + 1.5, y + 1.5, size - 3, size - 3);
-      ctx.fillStyle = (x + y) % 256 === 0 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
-      ctx.fillRect(x + 1.5, y + 1.5, size - 3, size - 3);
+  canvas.width = canvas.height = 1024;
+  const c = canvas.getContext('2d')!;
+  let seed = 819;
+  const random = () => {
+    seed = (1664525 * seed + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const rows = wood ? 8 : 3, cols = wood ? 2 : 3, w = 1024 / cols, h = 1024 / rows;
+  c.fillStyle = wood ? '#9b8063' : '#b2afa6';
+  c.fillRect(0, 0, 1024, 1024);
+  for (let row = 0; row < rows; row++) {
+    for (let col = -1; col <= cols; col++) {
+      const x = col * w + (wood ? (row % 2) * w / 2 : 0), y = row * h;
+      const variation = random();
+      c.fillStyle = wood ? `hsl(32 31% ${53 + variation * 8}%)` : `hsl(39 10% ${73 + variation * 3}%)`;
+      c.fillRect(x + 1.2, y + 1.2, w - 2.4, h - 2.4);
+      c.save();
+      c.beginPath();
+      c.rect(x + 1.2, y + 1.2, w - 2.4, h - 2.4);
+      c.clip();
+      if (wood) {
+        const knotX = x + w * (0.2 + random() * 0.6), knotY = y + h * (0.25 + random() * 0.5);
+        for (let line = 0; line < 90; line++) {
+          const yy = y + random() * h;
+          c.strokeStyle = random() > 0.45 ? 'rgba(69,42,22,0.16)' : 'rgba(242,219,180,0.20)';
+          c.lineWidth = 0.4 + random() * 1.3;
+          c.beginPath();
+          for (let t = 0; t <= w; t += 5) {
+            const xx = x + t, dx = (xx - knotX) / (w * 0.12), dy = yy - knotY;
+            const bend = Math.exp(-dx * dx) * Math.exp(-Math.abs(dy) / 22) * Math.sign(dy) * 14;
+            const py = yy + Math.sin(t * 0.025 + line) * 1.6 + bend;
+            if (t === 0) c.moveTo(xx, py); else c.lineTo(xx, py);
+          }
+          c.stroke();
+        }
+      }
+      for (let n = 0; n < 1000; n++) {
+        c.fillStyle = random() > 0.5 ? '#ffffff06' : '#00000004';
+        c.fillRect(x + random() * w, y + random() * h, wood ? 4 : 2, 1);
+      }
+      c.restore();
     }
   }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(4, 4);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
+  const map = new THREE.CanvasTexture(canvas);
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = 8;
+  return map;
 }
 
-// Textura de pedra atérmica para o pátio externo da piscina
-function createPatioTexture(): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 512;
-  const ctx = canvas.getContext('2d')!;
+export function applyFloorFinishes(floor: THREE.Mesh, deck?: THREE.Mesh, divider: number = -2.4) {
+  const insideMap = floorMap(false), outsideMap = floorMap(true);
+  const inside = new THREE.MeshStandardMaterial({ map: insideMap, roughness: 0.46, metalness: 0 });
+  const outside = new THREE.MeshStandardMaterial({ map: outsideMap, bumpMap: outsideMap, bumpScale: 0.003, roughness: 0.84, metalness: 0 });
 
-  ctx.fillStyle = '#aba394';
-  ctx.fillRect(0, 0, 512, 512);
+  const source = floor.geometry.index ? floor.geometry.toNonIndexed() : floor.geometry;
+  const p = source.attributes.position;
+  const n = source.attributes.normal;
+  const positions: number[] = [], normals: number[] = [], uv: number[] = [], groups: { start: number; count: number; materialIndex: number }[] = [];
 
-  // Pedras retangulares atérmicas
-  const rw = 128, rh = 64;
-  for (let y = 0; y < 512; y += rh) {
-    const shift = (y / rh) % 2 === 0 ? 0 : rw / 2;
-    for (let x = -rw; x < 512 + rw; x += rw) {
-      ctx.fillStyle = '#beb6a8';
-      ctx.fillRect(x + shift + 1.5, y + 1.5, rw - 3, rh - 3);
-      ctx.fillStyle = 'rgba(0,0,0,0.03)';
-      ctx.fillRect(x + shift + 3, y + 3, rw - 6, rh - 6);
+  function clip(poly: { p: THREE.Vector3; n: THREE.Vector3 }[], interior: boolean) {
+    const result: { p: THREE.Vector3; n: THREE.Vector3 }[] = [];
+    const inHalf = (v: { p: THREE.Vector3; n: THREE.Vector3 }) => interior ? v.p.x <= divider : v.p.x >= divider;
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length], aIn = inHalf(a), bIn = inHalf(b);
+      if (aIn) result.push(a);
+      if (aIn !== bIn) {
+        const t = (divider - a.p.x) / (b.p.x - a.p.x);
+        result.push({ p: a.p.clone().lerp(b.p, t), n: a.n.clone().lerp(b.n, t).normalize() });
+      }
     }
+    return result;
   }
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(5, 5);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
-// Textura de réguas de madeira nobre para o deck elevado da hidro
-function createWoodDeckTexture(): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 512;
-  const ctx = canvas.getContext('2d')!;
-
-  ctx.fillStyle = '#4a2f18';
-  ctx.fillRect(0, 0, 512, 512);
-
-  // Réguas de madeira nobre
-  const plankH = 32;
-  for (let y = 0; y < 512; y += plankH) {
-    const tone = 28 + Math.floor((y * 13) % 15);
-    ctx.fillStyle = `hsl(28 42% ${tone}%)`;
-    ctx.fillRect(0, y + 1, 512, plankH - 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.fillRect(0, y + 3, 512, 1);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
-    ctx.fillRect(0, y + plankH - 3, 512, 1);
+  for (let materialIndex = 0; materialIndex < 2; materialIndex++) {
+    const start = positions.length / 3;
+    for (let i = 0; i < p.count; i += 3) {
+      const tri = [0, 1, 2].map(k => ({
+        p: new THREE.Vector3().fromBufferAttribute(p, i + k),
+        n: new THREE.Vector3().fromBufferAttribute(n, i + k)
+      }));
+      const polygon = clip(tri, materialIndex === 0);
+      for (let j = 1; j + 1 < polygon.length; j++) {
+        for (const v of [polygon[0], polygon[j], polygon[j + 1]]) {
+          positions.push(v.p.x, v.p.y, v.p.z);
+          normals.push(v.n.x, v.n.y, v.n.z);
+          uv.push(v.p.x / 2.4, v.p.z / 2.4);
+        }
+      }
+    }
+    groups.push({ start, count: positions.length / 3 - start, materialIndex });
   }
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(3, 4);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  groups.forEach(a => g.addGroup(a.start, a.count, a.materialIndex));
+  g.computeBoundingBox();
+  g.computeBoundingSphere();
+  floor.geometry = g;
+  floor.material = [inside, outside];
+  floor.name = 'Piso: placas internas / réguas externas';
 
-export function applyFloorFinishes(
-  floor: THREE.Mesh,
-  deck?: THREE.Mesh,
-  divider: number = -2.4
-) {
-  const scene = floor.parent;
-  if (!scene) return;
-
-  const insideTileTex = createInsideTileTexture();
-  const patioTex = createPatioTexture();
-  const woodDeckTex = createWoodDeckTexture();
-
-  const insideMaterial = new THREE.MeshStandardMaterial({
-    map: insideTileTex,
-    roughness: 0.40,
-    metalness: 0.05
-  });
-
-  const patioMaterial = new THREE.MeshStandardMaterial({
-    map: patioTex,
-    roughness: 0.85,
-    metalness: 0.02
-  });
-
-  const deckMaterial = new THREE.MeshStandardMaterial({
-    map: woodDeckTex,
-    roughness: 0.65,
-    metalness: 0.05
-  });
-
-  // Ocultar a malha bruta original obj_25 que possuía mapeamento de UV defeituoso e Z-fighting com a piscina
-  floor.visible = false;
-
-  // 1. Piso do Salão / Gourmet (X de -12.5 até divider=-2.4, Z de -5.0 a 5.0)
-  const salaoWidth = divider - (-12.5); // 10.1 m
-  const salaoCenterX = -12.5 + salaoWidth / 2; // -7.45 m
-  const salaoGeo = new THREE.BoxGeometry(salaoWidth, 0.10, 10.0);
-  const salaoFloor = new THREE.Mesh(salaoGeo, insideMaterial);
-  salaoFloor.name = 'Piso Salão Porcelanato';
-  salaoFloor.position.set(salaoCenterX, 0.05, 0.0);
-  salaoFloor.receiveShadow = true;
-  scene.add(salaoFloor);
-
-  // 2. Piso do Pátio da Piscina (X de divider=-2.4 até 12.5, Z de -5.0 a 5.0)
-  // Altura ligeiramente inferior (0.098 vs 0.10) para Z-fighting ZERO absoluto com a bacia da piscina
-  const patioWidth = 12.5 - divider; // 14.9 m
-  const patioCenterX = divider + patioWidth / 2; // 5.05 m
-  const patioGeo = new THREE.BoxGeometry(patioWidth, 0.098, 10.0);
-  const patioFloor = new THREE.Mesh(patioGeo, patioMaterial);
-  patioFloor.name = 'Piso Pátio Atérmico';
-  patioFloor.position.set(patioCenterX, 0.049, 0.0);
-  patioFloor.receiveShadow = true;
-  scene.add(patioFloor);
-
-  // 3. Deck Elevado de Madeira da Hidro (obj_49)
   if (deck) {
-    deck.material = deckMaterial;
-    deck.receiveShadow = true;
-    deck.castShadow = true;
+    const dp = deck.geometry.attributes.position;
+    const duv: number[] = [];
+    for (let i = 0; i < dp.count; i++) duv.push(dp.getX(i) / 2.4, dp.getZ(i) / 2.4);
+    deck.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(duv, 2));
+    deck.material = outside;
   }
 }

@@ -2200,6 +2200,65 @@ html, body, #root {
   cursor: pointer;
   display: flex;
   align-items: center;
+  padding: 4px;
+}
+
+.spotify-clear-btn:hover {
+  color: #FFFFFF;
+}
+
+.spotify-search-submit-btn {
+  background: #1DB954;
+  color: #000000;
+  border: none;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.spotify-search-submit-btn:hover {
+  background: #1ed760;
+  transform: scale(1.04);
+}
+
+.spotify-search-suggestions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 0;
+}
+
+.spotify-suggestion-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.spotify-sug-pill {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #CBD5E1;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.spotify-sug-pill:hover {
+  background: rgba(29, 185, 84, 0.2);
+  border-color: rgba(29, 185, 84, 0.5);
+  color: #1ed760;
+  transform: translateY(-2px);
 }
 
 .spotify-empty-text {

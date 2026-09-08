@@ -602,13 +602,26 @@ export async function fetchRecentlyPlayed(): Promise<SpotifySearchItem[]> {
 }
 
 /**
- * Pesquisa faixas no Spotify
+ * Pesquisa faixas no Spotify com suporte a catálogo regional (market=from_token)
  */
 export async function searchSpotify(query: string): Promise<SpotifySearchItem[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const res = await spotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(trimmed)}&type=track&limit=25`);
+  const encoded = encodeURIComponent(trimmed);
+
+  // 1. Tenta pesquisar com market=from_token (traz as faixas liberadas para a conta/país do usuário)
+  let res = await spotifyFetch(
+    `https://api.spotify.com/v1/search?q=${encoded}&type=track&market=from_token&limit=30`
+  );
+
+  // 2. Se retornar erro ou status >= 400 (ex: market não aceito para essa chamada), tenta busca aberta
+  if (!res || !res.ok) {
+    res = await spotifyFetch(
+      `https://api.spotify.com/v1/search?q=${encoded}&type=track&limit=30`
+    );
+  }
+
   if (!res || !res.ok) {
     console.warn('Falha na busca Spotify. Status:', res?.status);
     return [];
@@ -616,14 +629,17 @@ export async function searchSpotify(query: string): Promise<SpotifySearchItem[]>
 
   try {
     const data = await res.json();
-    return (data.tracks?.items || []).map((track: any) => ({
-      id: track.id,
-      name: track.name,
-      artists: (track.artists || []).map((a: any) => a.name).join(', '),
-      albumArt: track.album?.images?.[0]?.url || track.album?.images?.[1]?.url || '',
-      uri: track.uri,
-      durationMs: track.duration_ms || 0,
-    }));
+    const rawTracks = data.tracks?.items || [];
+    return rawTracks
+      .filter((track: any) => track && (track.name || track.id))
+      .map((track: any) => ({
+        id: track.id || track.uri || String(Math.random()),
+        name: track.name || 'Faixa sem título',
+        artists: (track.artists || []).map((a: any) => a.name).filter(Boolean).join(', ') || 'Artista Desconhecido',
+        albumArt: track.album?.images?.[0]?.url || track.album?.images?.[1]?.url || '',
+        uri: track.uri || '',
+        durationMs: track.duration_ms || 0,
+      }));
   } catch (err) {
     console.error('Erro ao processar busca:', err);
     return [];

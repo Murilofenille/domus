@@ -252,15 +252,34 @@ export const SpotifyPlayer: React.FC = () => {
     setIsLoadingTracks(false);
   };
 
-  // Debounced search
-  useEffect(() => {
-    if (libraryTab !== 'search' || !searchQuery.trim()) {
+  // Busca imediata (Enter no teclado ou clique no botão Buscar)
+  const executeSearch = async (queryText: string) => {
+    const trimmed = queryText.trim();
+    if (!trimmed) {
       setSearchResults([]);
+      setIsSearching(false);
       return;
     }
+    setIsSearching(true);
+    const res = await searchSpotify(trimmed);
+    setSearchResults(res);
+    setIsSearching(false);
+  };
+
+  // Busca debounced enquanto o usuário digita
+  useEffect(() => {
+    if (libraryTab !== 'search') return;
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    // Marca searching IMEDIATAMENTE para não piscar "Nenhuma música encontrada" a cada tecla
+    setIsSearching(true);
     const timer = setTimeout(async () => {
-      setIsSearching(true);
-      const res = await searchSpotify(searchQuery);
+      const res = await searchSpotify(trimmed);
       setSearchResults(res);
       setIsSearching(false);
     }, 450);
@@ -882,22 +901,44 @@ export const SpotifyPlayer: React.FC = () => {
             {/* Aba 3: Buscar */}
             {libraryTab === 'search' && (
               <div className="spotify-search-wrapper">
-                <div className="spotify-search-bar">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    executeSearch(searchQuery);
+                  }}
+                  className="spotify-search-bar"
+                >
                   <Search size={18} className="text-gray-400" />
                   <input
                     type="text"
-                    placeholder="O que você quer ouvir hoje?"
+                    placeholder="Música, artista, banda ou álbum..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     autoFocus
                     className="spotify-search-input"
                   />
                   {searchQuery && (
-                    <button onClick={() => setSearchQuery('')} className="spotify-clear-btn">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSearchResults([]);
+                        setIsSearching(false);
+                      }}
+                      className="spotify-clear-btn"
+                      title="Limpar busca"
+                    >
                       <X size={14} />
                     </button>
                   )}
-                </div>
+                  <button
+                    type="submit"
+                    className="spotify-search-submit-btn"
+                    title="Pesquisar agora"
+                  >
+                    Buscar
+                  </button>
+                </form>
 
                 <div className="spotify-search-results">
                   {isSearching ? (
@@ -911,8 +952,15 @@ export const SpotifyPlayer: React.FC = () => {
                         key={trk.id}
                         onClick={() => handlePlayTrack(trk.uri)}
                         className="spotify-track-row"
+                        title={`Tocar ${trk.name}`}
                       >
-                        <img src={trk.albumArt} alt={trk.name} className="spotify-row-art" />
+                        {trk.albumArt ? (
+                          <img src={trk.albumArt} alt={trk.name} className="spotify-row-art" />
+                        ) : (
+                          <div className="spotify-row-art-ph">
+                            <Music size={14} />
+                          </div>
+                        )}
                         <div className="spotify-row-details">
                           <span className="spotify-row-name">{trk.name}</span>
                           <span className="spotify-row-artist">{trk.artists}</span>
@@ -925,13 +973,43 @@ export const SpotifyPlayer: React.FC = () => {
                     ))
                   ) : searchQuery.trim() ? (
                     <div className="spotify-empty-state">
-                      <p className="spotify-empty-text">Nenhuma música encontrada para "{searchQuery}".</p>
-                      <button onClick={handleReconnect} className="spotify-reconnect-btn">
-                        Reconectar Spotify
+                      <Search size={28} className="text-gray-500" />
+                      <p className="spotify-empty-text" style={{ padding: '6px 0 12px 0' }}>
+                        Nenhuma música encontrada para "{searchQuery}".
+                        <br />
+                        <span style={{ fontSize: '11px', color: '#64748B' }}>
+                          Tente buscar por outro artista, álbum ou nome da faixa.
+                        </span>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => executeSearch(searchQuery)}
+                        className="spotify-retry-btn"
+                      >
+                        Tentar Novamente
                       </button>
                     </div>
                   ) : (
-                    <p className="spotify-empty-text">Digite o nome de uma música, artista ou banda acima.</p>
+                    <div className="spotify-search-suggestions">
+                      <p className="spotify-empty-text" style={{ paddingBottom: '10px' }}>
+                        Digite o nome de uma música, artista ou banda acima.
+                      </p>
+                      <div className="spotify-suggestion-pills">
+                        {['Sertanejo', 'Rock', 'Pop', 'Chitãozinho', 'Coldplay', 'Pagode'].map((sug) => (
+                          <button
+                            key={sug}
+                            type="button"
+                            onClick={() => {
+                              setSearchQuery(sug);
+                              executeSearch(sug);
+                            }}
+                            className="spotify-sug-pill"
+                          >
+                            {sug}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

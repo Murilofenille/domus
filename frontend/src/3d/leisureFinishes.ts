@@ -264,8 +264,9 @@ export function finishScene(
   if (wall50) {
     wall50.scale.y = 2.8 / 5.8;
     wall50.material = blackWallMat;
-    wall50.position.z += 0.12; // Desloca para dentro do pátio
-    wall50.position.x += 0.08; // Desloca para frente (longe do fundo)
+    wall50.position.y -= 0.05;
+    wall50.position.z += 0; // Desloca para dentro do pátio
+    wall50.position.x += 0; // Desloca para frente (longe do fundo)
     walls.push(wall50);
   }
 
@@ -274,8 +275,9 @@ export function finishScene(
     wall54.scale.y = 2.8 / 5.8;
     wall54.scale.x = 1; // Reduz o comprimento para não colidir com o tijolo
     wall54.material = blackWallMat;
-    wall54.position.z -= 0.12; // Desloca para dentro do pátio
-    wall54.position.x += 0.70; // Desloca para frente (começa exatamente onde o tijolo termina)
+    wall54.position.y -= 0.05;
+    wall54.position.z -= 0.05; // Desloca para dentro do pátio
+    wall54.position.x += 1.3; // Desloca para frente (começa exatamente onde o tijolo termina)
     walls.push(wall54);
   }
 

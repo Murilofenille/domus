@@ -1,18 +1,18 @@
 // DOMUS Smart Home - Service Worker
-const CACHE_NAME = 'domus-v1.3';
+const CACHE_NAME = 'domus-v1.4';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/favicon.svg',
+  '/favicon.png',
   '/LogotipoDomus.svg',
   '/logopwa.png',
+  '/logo-pwa.png',
   '/icon-192.png',
   '/icon-512.png',
   '/icon-maskable.png',
-  '/apple-touch-icon.png',
-  '/planta_baixa_2d_dark.png',
-  '/planta_baixa_2d_light.png'
+  '/apple-touch-icon.png'
 ];
 
 // Install: Cache core assets

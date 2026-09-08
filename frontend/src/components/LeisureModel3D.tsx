@@ -46,6 +46,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
   const gourmetPinRef = useRef<HTMLDivElement>(null);
   const poolPinRef = useRef<HTMLDivElement>(null);
   const updatePinsRef = useRef<(() => void) | null>(null);
+  const requestRenderRef = useRef<(() => void) | null>(null);
 
   // Extração dos status reais dos dispositivos Sonoff / Tuya
   const isStairOn = Boolean(devicesData['1000e4a34e']?.switch ?? devicesData['1000e4a34e']?.switch_1);
@@ -206,6 +207,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
         requestAnimationFrame(() => {
           if (rendererRef.current) rendererRef.current.shadowMap.needsUpdate = true;
           if (updatePinsRef.current) updatePinsRef.current();
+          if (requestRenderRef.current) requestRenderRef.current();
         });
       },
       (xhr) => {
@@ -250,26 +252,34 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     };
     updatePinsRef.current = updatePins;
 
-    // Atualiza pins imediatamente durante gestos de rotação/zoom no tablet
-    controls.addEventListener('change', updatePins);
+    // Renderização inteligente sob demanda: 0% de uso de GPU em repouso
+    let renderFrames = 15;
+    const requestRender = () => {
+      renderFrames = Math.max(renderFrames, 6);
+    };
+    requestRenderRef.current = requestRender;
 
-    // Loop de renderização fluido de 60fps sem travar a CPU do tablet
+    // Dispara render e pins imediatamente durante gestos de rotação/zoom no tablet
+    controls.addEventListener('change', () => {
+      requestRender();
+      updatePins();
+    });
+
+    // Loop de renderização fluido sem sobrecarregar a GPU em repouso
     let animId: number;
-    const clock = new THREE.Clock();
 
     const renderLoop = () => {
       animId = requestAnimationFrame(renderLoop);
-      const moved = controls.update();
-      if (moved) {
+      const isMoving = controls.update();
+      if (isMoving) {
+        renderFrames = 6;
         updatePins();
       }
 
-      const elapsedTime = clock.getElapsedTime();
-      if (finishesRef.current) {
-        finishesRef.current.update(elapsedTime);
+      if (renderFrames > 0) {
+        renderFrames--;
+        renderer.render(scene, camera);
       }
-
-      renderer.render(scene, camera);
     };
     renderLoop();
 
@@ -283,6 +293,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
       renderer.setSize(w, h, false);
       updatePins();
+      requestRender();
     };
     window.addEventListener('resize', handleResize);
     handleResize();
@@ -301,21 +312,25 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
   useEffect(() => {
     if (!finishesRef.current) return;
     finishesRef.current.setStairLight(isStairOn);
+    if (requestRenderRef.current) requestRenderRef.current();
   }, [isStairOn]);
 
   useEffect(() => {
     if (!finishesRef.current) return;
     finishesRef.current.setArandelas(isArandelaOn);
+    if (requestRenderRef.current) requestRenderRef.current();
   }, [isArandelaOn]);
 
   useEffect(() => {
     if (!finishesRef.current) return;
     finishesRef.current.setGourmetLight(isGourmetOn);
+    if (requestRenderRef.current) requestRenderRef.current();
   }, [isGourmetOn]);
 
   useEffect(() => {
     if (!finishesRef.current) return;
     finishesRef.current.setPoolLight(isHydroBackOn || isHydroFeetOn);
+    if (requestRenderRef.current) requestRenderRef.current();
   }, [isHydroBackOn, isHydroFeetOn]);
 
   // Alternar modo Noturno / Diurno com transição suave de iluminação
@@ -336,6 +351,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
       }
       if (finishesRef.current) finishesRef.current.setNight(next);
       if (rendererRef.current) rendererRef.current.shadowMap.needsUpdate = true;
+      if (requestRenderRef.current) requestRenderRef.current();
       return next;
     });
   }, []);
@@ -346,6 +362,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
       const next = !prev;
       if (finishesRef.current) finishesRef.current.setUpperVisible(next);
       if (rendererRef.current) rendererRef.current.shadowMap.needsUpdate = true;
+      if (requestRenderRef.current) requestRenderRef.current();
       return next;
     });
   }, []);
@@ -356,6 +373,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
       const next = !prev;
       if (finishesRef.current) finishesRef.current.setWallScale(next ? 0.24 : 1.0);
       if (rendererRef.current) rendererRef.current.shadowMap.needsUpdate = true;
+      if (requestRenderRef.current) requestRenderRef.current();
       return next;
     });
   }, []);
@@ -386,6 +404,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     }
     controls.update();
     if (updatePinsRef.current) updatePinsRef.current();
+    if (requestRenderRef.current) requestRenderRef.current();
   }, []);
 
   return (

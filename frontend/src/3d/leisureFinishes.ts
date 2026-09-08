@@ -165,7 +165,6 @@ export function finishScene(
   const graniteIDs = new Set([9, 10, 13, 18]);
   const byId = new Map(meshes.map(m => [m.userData.id, m]));
 
-  const waterUniforms: { value: number }[] = [];
   const arandelaLights: THREE.PointLight[] = [];
 
   function box(name: string, x: number, y: number, z: number, w: number, h: number, d: number, mat: THREE.Material) {
@@ -237,32 +236,28 @@ export function finishScene(
     wg.setAttribute('position', new THREE.Float32BufferAttribute(coords, 3));
     wg.computeVertexNormals();
 
-    const water = new THREE.MeshPhysicalMaterial({
+    const water = new THREE.MeshStandardMaterial({
       color: '#087da7',
       roughness: 0.17,
       metalness: 0.12,
-      clearcoat: 1,
-      clearcoatRoughness: 0.1,
       transparent: true,
       opacity: 0.82,
-      side: THREE.DoubleSide,
+      side: THREE.FrontSide,
       depthWrite: false
     });
 
     water.onBeforeCompile = (shader) => {
-      shader.uniforms.uTime = { value: 0 };
-      waterUniforms.push(shader.uniforms.uTime);
       shader.vertexShader = 'varying vec3 vWater;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvWater=position;');
-      shader.fragmentShader = 'uniform float uTime; varying vec3 vWater;\n' + shader.fragmentShader.replace(
+      shader.fragmentShader = 'varying vec3 vWater;\n' + shader.fragmentShader.replace(
         '#include <normal_fragment_maps>',
         `#include <normal_fragment_maps>
-        float a = sin(vWater.x * 17.0 + vWater.z * 9.0 + uTime * 0.65);
-        float b = cos(vWater.z * 23.0 - vWater.x * 6.0 - uTime * 0.47);
+        float a = sin(vWater.x * 17.0 + vWater.z * 9.0);
+        float b = cos(vWater.z * 23.0 - vWater.x * 6.0);
         normal = normalize(normal + vec3(a * 0.07, b * 0.06, 0.0));`
       ).replace(
         '#include <color_fragment>',
         `#include <color_fragment>
-        float ca = pow(max(0.0, sin(vWater.x * 13.0 + sin(vWater.z * 11.0 + uTime * 0.4)) + cos(vWater.z * 15.0 + sin(vWater.x * 7.0 - uTime * 0.3))) * 0.5, 5.0);
+        float ca = pow(max(0.0, sin(vWater.x * 13.0 + sin(vWater.z * 11.0)) + cos(vWater.z * 15.0 + sin(vWater.x * 7.0))) * 0.5, 5.0);
         diffuseColor.rgb += vec3(0.13, 0.28, 0.3) * ca;`
       );
     };
@@ -448,9 +443,7 @@ export function finishScene(
   }
 
   return {
-    update(t: number) {
-      waterUniforms.forEach(u => { u.value = t; });
-    },
+    update(_t: number) {},
     setNight(on: boolean) {
       // Controla a intensidade da luz ambiente/reflexiva do céu noturno
       scene.environmentIntensity = on ? 0.04 : 1.0;

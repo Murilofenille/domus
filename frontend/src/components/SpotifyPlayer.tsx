@@ -65,6 +65,7 @@ export const SpotifyPlayer: React.FC = () => {
   const [selectedPlaylist, setSelectedPlaylist] = useState<SpotifyPlaylist | null>(null);
   const [playlistTracks, setPlaylistTracks] = useState<SpotifyPlaylistTrack[]>([]);
   const [isLoadingTracks, setIsLoadingTracks] = useState<boolean>(false);
+  const [playlistError, setPlaylistError] = useState<string | null>(null);
 
   const [recentTracks, setRecentTracks] = useState<SpotifySearchItem[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -214,6 +215,7 @@ export const SpotifyPlayer: React.FC = () => {
   const loadLibrary = async (tab: 'playlists' | 'recent' | 'search') => {
     setLibraryTab(tab);
     setSelectedPlaylist(null); // Volta para grade de playlists se mudar de aba
+    setPlaylistError(null);
     setIsLibraryOpen(true);
     if (tab === 'playlists' && playlists.length === 0) {
       await refreshPlaylists();
@@ -225,9 +227,15 @@ export const SpotifyPlayer: React.FC = () => {
   // Abrir uma playlist específica e carregar as músicas dela
   const handleOpenPlaylist = async (pl: SpotifyPlaylist) => {
     setSelectedPlaylist(pl);
+    setPlaylistError(null);
     setIsLoadingTracks(true);
-    const tracks = await fetchPlaylistTracks(pl.id);
-    setPlaylistTracks(tracks);
+    const res = await fetchPlaylistTracks(pl.id);
+    setPlaylistTracks(res.tracks);
+    if (res.error === 'FORBIDDEN') {
+      setPlaylistError('PERMISSIONS_REQUIRED');
+    } else if (res.error && res.error !== 'EMPTY') {
+      setPlaylistError(res.message || 'Erro ao carregar faixas.');
+    }
     setIsLoadingTracks(false);
   };
 
@@ -670,8 +678,27 @@ export const SpotifyPlayer: React.FC = () => {
                         <RotateCw size={24} className="animate-spin text-amber-500" />
                         <p className="spotify-empty-text">Carregando músicas da playlist...</p>
                       </div>
+                    ) : playlistError === 'PERMISSIONS_REQUIRED' ? (
+                      <div className="spotify-empty-state">
+                        <AlertCircle size={32} className="text-amber-500" />
+                        <h5 style={{ color: '#FFFFFF', margin: '4px 0', fontWeight: 700 }}>Permissões Desatualizadas</h5>
+                        <p className="spotify-empty-text" style={{ padding: '0 0 12px 0' }}>
+                          Sua sessão do Spotify foi aberta antes de adicionarmos a leitura das playlists. Clique abaixo para reconectar e liberar o acesso às músicas:
+                        </p>
+                        <button onClick={handleReconnect} className="spotify-reconnect-btn" style={{ padding: '8px 18px', fontSize: '13px' }}>
+                          🔄 Reconectar e Atualizar Acesso
+                        </button>
+                      </div>
                     ) : playlistTracks.length === 0 ? (
-                      <p className="spotify-empty-text">Nenhuma música encontrada nesta playlist.</p>
+                      <div className="spotify-empty-state">
+                        <Music size={28} className="text-gray-500" />
+                        <p className="spotify-empty-text" style={{ padding: '0 0 8px 0' }}>
+                          {playlistError || 'Nenhuma música encontrada nesta playlist ou playlist privada.'}
+                        </p>
+                        <button onClick={handleReconnect} className="spotify-reconnect-btn">
+                          Reconectar Spotify
+                        </button>
+                      </div>
                     ) : (
                       playlistTracks.map((trk, idx) => (
                         <div

@@ -447,35 +447,62 @@ export async function fetchUserPlaylists(): Promise<SpotifyPlaylist[]> {
   }
 }
 
+export interface PlaylistTracksResult {
+  tracks: SpotifyPlaylistTrack[];
+  error?: 'FORBIDDEN' | 'NOT_FOUND' | 'AUTH_ERROR' | 'EMPTY' | 'UNKNOWN' | null;
+  message?: string;
+}
+
 /**
  * Busca as faixas de uma playlist específica para permitir ao usuário escolher músicas individuais
  */
-export async function fetchPlaylistTracks(playlistId: string): Promise<SpotifyPlaylistTrack[]> {
-  const res = await spotifyFetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`);
-  if (!res || !res.ok) {
-    console.warn(`Falha ao buscar faixas da playlist ${playlistId}. Status:`, res?.status);
-    return [];
+export async function fetchPlaylistTracks(playlistId: string): Promise<PlaylistTracksResult> {
+  const cleanId = playlistId.replace('spotify:playlist:', '').trim();
+  const res = await spotifyFetch(`https://api.spotify.com/v1/playlists/${cleanId}/tracks?limit=100`);
+
+  if (!res) {
+    return { tracks: [], error: 'AUTH_ERROR', message: 'Sessão do Spotify não encontrada ou expirada.' };
+  }
+
+  if (res.status === 403) {
+    console.warn(`Permissão 403 ao buscar faixas da playlist ${cleanId}. Escopos podem estar desatualizados.`);
+    return {
+      tracks: [],
+      error: 'FORBIDDEN',
+      message: 'Permissões insuficientes no token atual. Clique em Reconectar Spotify para renovar a autorização.',
+    };
+  }
+
+  if (res.status === 404) {
+    return { tracks: [], error: 'NOT_FOUND', message: 'Playlist não encontrada ou privada sem permissão.' };
+  }
+
+  if (!res.ok) {
+    return { tracks: [], error: 'UNKNOWN', message: `Erro ao buscar faixas (Status ${res.status}).` };
   }
 
   try {
     const data = await res.json();
-    return (data.items || [])
-      .filter((item: any) => item && item.track && item.track.id)
+    const items = data.items || [];
+    const tracks: SpotifyPlaylistTrack[] = items
+      .filter((item: any) => item && (item.track || item.item))
       .map((item: any) => {
-        const t = item.track;
+        const t = item.track || item.item;
         return {
-          id: t.id,
-          name: t.name,
-          artists: (t.artists || []).map((a: any) => a.name).join(', '),
+          id: t.id || t.uri || String(Math.random()),
+          name: t.name || 'Faixa sem título',
+          artists: (t.artists || []).map((a: any) => a.name).join(', ') || 'Artista Desconhecido',
           album: t.album?.name || '',
           albumArt: t.album?.images?.[0]?.url || t.album?.images?.[1]?.url || '',
-          uri: t.uri,
+          uri: t.uri || '',
           durationMs: t.duration_ms || 0,
         };
       });
+
+    return { tracks, error: tracks.length === 0 ? 'EMPTY' : null };
   } catch (err) {
     console.error('Erro ao processar faixas da playlist:', err);
-    return [];
+    return { tracks: [], error: 'UNKNOWN', message: 'Erro ao processar lista de músicas.' };
   }
 }
 

@@ -454,40 +454,45 @@ export interface PlaylistTracksResult {
 }
 
 /**
- * Busca as faixas de uma playlist específica para permitir ao usuário escolher músicas individuais
+ * Busca as faixas de uma playlist específica para permitir ao usuário escolher músicas individuais.
+ * Suporta o endpoint moderno do Spotify (/items), o endpoint geral (/playlists/{id}) e o legado (/tracks).
  */
 export async function fetchPlaylistTracks(playlistId: string): Promise<PlaylistTracksResult> {
   const cleanId = playlistId.replace('spotify:playlist:', '').trim();
-  const res = await spotifyFetch(`https://api.spotify.com/v1/playlists/${cleanId}/tracks?limit=100`);
 
-  if (!res) {
-    return { tracks: [], error: 'AUTH_ERROR', message: 'Sessão do Spotify não encontrada ou expirada.' };
+  // 1. Tenta o endpoint moderno do Spotify (Fevereiro 2026): /v1/playlists/{id}/items
+  let res = await spotifyFetch(`https://api.spotify.com/v1/playlists/${cleanId}/items?limit=100`);
+
+  // 2. Se falhar ou retornar 403/404, tenta o endpoint da playlist completa: /v1/playlists/{id}
+  if (!res || !res.ok) {
+    console.warn(`Tentativa em /items retornou status ${res?.status}. Tentando /v1/playlists/${cleanId}...`);
+    res = await spotifyFetch(`https://api.spotify.com/v1/playlists/${cleanId}`);
   }
 
-  if (res.status === 403) {
-    console.warn(`Permissão 403 ao buscar faixas da playlist ${cleanId}. Escopos podem estar desatualizados.`);
+  // 3. Se ainda falhar, tenta o endpoint legado /v1/playlists/{id}/tracks
+  if (!res || !res.ok) {
+    console.warn(`Tentando fallback legado /v1/playlists/${cleanId}/tracks...`);
+    res = await spotifyFetch(`https://api.spotify.com/v1/playlists/${cleanId}/tracks?limit=100`);
+  }
+
+  if (!res || !res.ok) {
+    console.error(`Falha ao obter faixas da playlist ${cleanId}. Status final:`, res?.status);
     return {
       tracks: [],
-      error: 'FORBIDDEN',
-      message: 'Permissões insuficientes no token atual. Clique em Reconectar Spotify para renovar a autorização.',
+      error: res?.status === 403 ? 'FORBIDDEN' : res?.status === 404 ? 'NOT_FOUND' : 'UNKNOWN',
+      message: `Não foi possível carregar as músicas da playlist (Status ${res?.status || 0}).`,
     };
-  }
-
-  if (res.status === 404) {
-    return { tracks: [], error: 'NOT_FOUND', message: 'Playlist não encontrada ou privada sem permissão.' };
-  }
-
-  if (!res.ok) {
-    return { tracks: [], error: 'UNKNOWN', message: `Erro ao buscar faixas (Status ${res.status}).` };
   }
 
   try {
     const data = await res.json();
-    const items = data.items || [];
-    const tracks: SpotifyPlaylistTrack[] = items
-      .filter((item: any) => item && (item.track || item.item))
+    // Extrai itens de qualquer uma das estruturas possíveis (items, items.items, tracks.items)
+    const rawItems = data.items?.items || data.items || data.tracks?.items || [];
+
+    const tracks: SpotifyPlaylistTrack[] = rawItems
       .map((item: any) => {
-        const t = item.track || item.item;
+        const t = item.item || item.track || item;
+        if (!t || (!t.name && !t.id)) return null;
         return {
           id: t.id || t.uri || String(Math.random()),
           name: t.name || 'Faixa sem título',
@@ -497,7 +502,8 @@ export async function fetchPlaylistTracks(playlistId: string): Promise<PlaylistT
           uri: t.uri || '',
           durationMs: t.duration_ms || 0,
         };
-      });
+      })
+      .filter((t: any): t is SpotifyPlaylistTrack => t !== null);
 
     return { tracks, error: tracks.length === 0 ? 'EMPTY' : null };
   } catch (err) {

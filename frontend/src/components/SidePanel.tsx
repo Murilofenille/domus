@@ -49,15 +49,6 @@ export const SidePanel: React.FC<SidePanelProps> = ({
         <div className="empty-room-state">
           <p>Selecione um cômodo na casa para ver e controlar os interruptores e aparelhos associados.</p>
         </div>
-
-        <div className="panel-footer-tips">
-          <div className="tip-item">
-            <span>🖱️ <b>Navegação:</b> Arraste para girar a casa, role para dar zoom</span>
-          </div>
-          <div className="tip-item">
-            <span>💡 <b>Controle Rápido:</b> Clique em qualquer Pin 3D para ligar/desligar</span>
-          </div>
-        </div>
       </aside>
     );
   }
@@ -142,16 +133,6 @@ export const SidePanel: React.FC<SidePanelProps> = ({
             </p>
           </div>
         )}
-      </div>
-
-      {/* Cartão de Dicas de Interação */}
-      <div className="panel-footer-tips">
-        <div className="tip-item">
-          <span>🖱️ <b>Navegação:</b> Arraste para girar a casa, role para dar zoom</span>
-        </div>
-        <div className="tip-item">
-          <span>💡 <b>Controle Rápido:</b> Clique em qualquer Pin 3D para ligar/desligar</span>
-        </div>
       </div>
     </aside>
   );

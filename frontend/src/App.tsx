@@ -1,7 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
-import { CutawayHouse } from './components/CutawayHouse';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { LeisureModel3D } from './components/LeisureModel3D';
 import { Floorplan2D } from './components/Floorplan2D';
 import { TopBar } from './components/TopBar';
 import { SidePanel, type RoomDeviceItem } from './components/SidePanel';
@@ -16,52 +14,6 @@ import type { Room } from './types';
 import { fetchDeviceStatus, sendTuyaCommand, fetchDeviceConfig } from './services/api';
 import { handleSpotifyCallback } from './services/spotify';
 import { isLightSwitchChannel } from './tuyaChannels';
-
-interface CameraControllerProps {
-  viewMode: '3D' | '2D';
-}
-
-function CameraController({ viewMode }: CameraControllerProps) {
-  const { camera } = useThree();
-  const controlsRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (controlsRef.current) {
-      if (viewMode === '2D') {
-        // Câmera no topo absoluto olhando para baixo (planta baixa pura)
-        camera.position.set(0, 36, 0.001);
-        camera.up.set(0, 0, -1); // Orienta planta: garagem embaixo, quartos em cima
-        controlsRef.current.target.set(0, 0, 0);
-        controlsRef.current.update();
-      } else {
-        // Modo 3D isométrico fluido
-        camera.position.set(12, 24, 25);
-        camera.up.set(0, 1, 0);
-        controlsRef.current.target.set(0, 0, 0);
-        controlsRef.current.update();
-      }
-    }
-  }, [viewMode, camera]);
-
-  return (
-    <OrbitControls
-      ref={controlsRef}
-      enablePan={true}
-      enableZoom={true}
-      enableRotate={viewMode === '3D'}
-      enableDamping={true}
-      dampingFactor={0.07}
-      rotateSpeed={0.8}
-      zoomSpeed={0.9}
-      panSpeed={0.9}
-      minDistance={6}
-      maxDistance={80}
-      minPolarAngle={viewMode === '2D' ? 0 : 0}
-      maxPolarAngle={viewMode === '2D' ? 0.001 : Math.PI / 2.1}
-      target={[0, 0, 0]}
-    />
-  );
-}
 
 export function App() {
   // Mapa de estados de iluminação da maquete 3D { [pinId]: boolean }
@@ -314,17 +266,6 @@ export function App() {
     }
   };
 
-  // Clique direto no Pin 3D da casa
-  const handleTogglePinLight = async (pinId: string) => {
-    const pin = automationPins.find(p => p.id === pinId);
-    if (pin && pin.deviceId) {
-      const dp = pin.dpCode || 'switch_1';
-      const current = !!lightStates[pinId];
-      await handleToggleDeviceSwitch(pin.deviceId, dp, current);
-    } else {
-      setLightStates(prev => ({ ...prev, [pinId]: !prev[pinId] }));
-    }
-  };
 
   // Alternar todas as luzes da casa
   const handleToggleAll = () => {
@@ -447,15 +388,10 @@ export function App() {
   // 4 Interruptores em destaque para o Dashboard da Área de Lazer (prioriza dispositivos reais eWeLink)
   const quickSwitches = useMemo(() => {
     const candidates = [
-      { devKey: '1000e4a34e', code: 'switch_1', defaultName: 'Luz Escada' },
-      { devKey: '1000e4bd27', code: 'switch_1', defaultName: 'Arandela Piscina' },
-      { devKey: '1000e4a34c', code: 'switch_1', defaultName: 'Iluminação Salão Inferior' },
-      { devKey: '1000e8f9b1', code: 'switch_1', fallbackCode: 'switch_3', defaultName: 'Piscina' },
-      // Fallback para os circuitos da casa caso o eWeLink ainda esteja sincronizando
-      { devKey: 'quarto_murilo', code: 'switch_1', defaultName: 'Luz Central Quarto' },
-      { devKey: 'sala', code: 'switch_4', fallbackCode: 'switch_1', defaultName: 'Luz Central Sala' },
-      { devKey: 'cozinha', code: 'switch_1', defaultName: 'Ilha Gourmet' },
-      { devKey: 'suite_master', code: 'switch_1', fallbackCode: 'switch_2', defaultName: 'Luz Suíte Master' },
+      { devKey: '1000e4a34e', code: 'switch', fallbackCode: 'switch_1', defaultName: 'Luz Escada' },
+      { devKey: '1000e4bd27', code: 'switch', fallbackCode: 'switch_1', defaultName: 'Arandela Piscina' },
+      { devKey: '1000e4a34c', code: 'switch', fallbackCode: 'switch_1', defaultName: 'Iluminação Salão' },
+      { devKey: '1000e8f9b1', code: 'switch_2', fallbackCode: 'switch_1', defaultName: 'Luz Piscina' },
     ];
 
     const switchesList: Array<{
@@ -567,53 +503,15 @@ export function App() {
               onSelectRoom={(room) => setSelectedRoom(room)}
             />
           ) : (
-        <div className="canvas-wrapper">
-          <Canvas
-            shadows
-            dpr={[1, 1.5]}
-            gl={{
-              powerPreference: 'high-performance',
-              antialias: true,
-              alpha: false,
-              stencil: false,
-              depth: true
-            }}
-            camera={{
-              position: [12, 24, 25],
-              fov: 34,
-              near: 0.1,
-              far: 1000
-            }}
-          >
-            <color attach="background" args={["#EEF2F6"]} />
-            <ambientLight intensity={1.5} />
-
-            {/* Sol / Luz Direcional com sombras arquitetônicas suaves (1024x1024 para alta fluidez) */}
-            <directionalLight
-              position={[-15, 30, 20]}
-              intensity={2.2}
-              castShadow
-              shadow-mapSize-width={1024}
-              shadow-mapSize-height={1024}
-              shadow-bias={-0.0001}
-            />
-            <directionalLight position={[15, 15, -20]} intensity={0.8} />
-
-            {/* Maquete da Casa com Cômodos e Mobília */}
-            <CutawayHouse
-              lightStates={lightStates}
-              roomActiveStates={roomActiveStates}
-              onToggleLight={handleTogglePinLight}
-              onSelectRoom={(room) => setSelectedRoom(room)}
-              selectedRoomId={selectedRoom?.id}
-              viewMode="3D"
-            />
-
-            {/* Controles de Câmera 3D */}
-            <CameraController viewMode="3D" />
-          </Canvas>
-        </div>
-      )}
+            <div className="canvas-wrapper">
+              <LeisureModel3D
+                devicesData={allDevicesData}
+                onToggleDeviceSwitch={handleToggleDeviceSwitch}
+                poolTemperature={poolTemperature}
+                onNavigateHome={() => setActiveTab('dashboard')}
+              />
+            </div>
+          )}
       </>
     )}
 

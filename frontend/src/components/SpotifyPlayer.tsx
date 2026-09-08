@@ -1,5 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Play, Pause, SkipForward, SkipBack, Music, Volume2, ChevronDown, ChevronUp, LogOut } from 'lucide-react';
+import {
+  Play,
+  Pause,
+  SkipForward,
+  SkipBack,
+  Music,
+  Volume2,
+  VolumeX,
+  ChevronDown,
+  ChevronUp,
+  LogOut,
+  Tv,
+  Smartphone,
+  Laptop,
+  Speaker,
+  Search,
+  ListMusic,
+  Clock,
+  X
+} from 'lucide-react';
 import {
   isSpotifyConnected,
   loginWithSpotify,
@@ -8,7 +27,18 @@ import {
   toggleSpotifyPlay,
   nextSpotifyTrack,
   previousSpotifyTrack,
+  fetchAvailableDevices,
+  transferSpotifyPlayback,
+  setSpotifyVolume,
+  fetchUserPlaylists,
+  fetchRecentlyPlayed,
+  searchSpotify,
+  playSpotifyContext,
+  playSpotifyTrack,
   type SpotifyTrack,
+  type SpotifyDevice,
+  type SpotifyPlaylist,
+  type SpotifySearchItem
 } from '../services/spotify';
 
 export const SpotifyPlayer: React.FC = () => {
@@ -16,6 +46,20 @@ export const SpotifyPlayer: React.FC = () => {
   const [track, setTrack] = useState<SpotifyTrack | null>(null);
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
   const [isBusy, setIsBusy] = useState<boolean>(false);
+
+  // Estados dos Modais
+  const [isDevicesOpen, setIsDevicesOpen] = useState<boolean>(false);
+  const [isLibraryOpen, setIsLibraryOpen] = useState<boolean>(false);
+  const [libraryTab, setLibraryTab] = useState<'playlists' | 'recent' | 'search'>('playlists');
+
+  // Dados da Biblioteca e Aparelhos
+  const [devices, setDevices] = useState<SpotifyDevice[]>([]);
+  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+  const [recentTracks, setRecentTracks] = useState<SpotifySearchItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchResults, setSearchResults] = useState<SpotifySearchItem[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [volume, setVolume] = useState<number>(50);
 
   // Busca periódica do status da música
   const syncPlayback = useCallback(async () => {
@@ -27,6 +71,9 @@ export const SpotifyPlayer: React.FC = () => {
     setConnected(true);
     const data = await fetchPlaybackState();
     setTrack(data);
+    if (data?.volumePercent !== undefined) {
+      setVolume(data.volumePercent);
+    }
   }, []);
 
   // Escutar eventos de login vindos de outras abas/popups ou ao voltar o foco para o PWA
@@ -79,7 +126,6 @@ export const SpotifyPlayer: React.FC = () => {
     if (!connected) return;
 
     syncPlayback();
-    // Se estiver tocando, atualiza a cada 2.8s; se pausado, a cada 6s
     const delay = track?.isPlaying ? 2800 : 6000;
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
@@ -90,7 +136,43 @@ export const SpotifyPlayer: React.FC = () => {
     return () => clearInterval(interval);
   }, [connected, track?.isPlaying, syncPlayback]);
 
-  // Controles
+  // Carregar lista de aparelhos quando abrir o modal de aparelhos
+  const loadDevices = async () => {
+    const list = await fetchAvailableDevices();
+    setDevices(list);
+    setIsDevicesOpen(true);
+  };
+
+  // Carregar playlists ou recentes
+  const loadLibrary = async (tab: 'playlists' | 'recent' | 'search') => {
+    setLibraryTab(tab);
+    setIsLibraryOpen(true);
+    if (tab === 'playlists' && playlists.length === 0) {
+      const list = await fetchUserPlaylists();
+      setPlaylists(list);
+    } else if (tab === 'recent' && recentTracks.length === 0) {
+      const list = await fetchRecentlyPlayed();
+      setRecentTracks(list);
+    }
+  };
+
+  // Debounced search
+  useEffect(() => {
+    if (libraryTab !== 'search' || !searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      const res = await searchSpotify(searchQuery);
+      setSearchResults(res);
+      setIsSearching(false);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, libraryTab]);
+
+  // Controles de Reprodução
   const handleTogglePlay = async () => {
     if (!track || isBusy) return;
     setIsBusy(true);
@@ -118,18 +200,50 @@ export const SpotifyPlayer: React.FC = () => {
     setIsBusy(false);
   };
 
+  const handleTransferDevice = async (deviceId: string) => {
+    await transferSpotifyPlayback(deviceId, true);
+    setIsDevicesOpen(false);
+    setTimeout(syncPlayback, 600);
+  };
+
+  const handleVolumeChange = async (newVol: number) => {
+    setVolume(newVol);
+    await setSpotifyVolume(newVol);
+  };
+
+  const handlePlayPlaylist = async (uri: string) => {
+    await playSpotifyContext(uri);
+    setIsLibraryOpen(false);
+    setTimeout(syncPlayback, 600);
+  };
+
+  const handlePlayTrack = async (uri: string) => {
+    await playSpotifyTrack(uri);
+    setIsLibraryOpen(false);
+    setTimeout(syncPlayback, 600);
+  };
+
   const handleLogout = () => {
     logoutSpotify();
     setConnected(false);
     setTrack(null);
+    setIsDevicesOpen(false);
+    setIsLibraryOpen(false);
   };
 
-  // Formatar milissegundos para mm:ss
   const formatTime = (ms: number) => {
     const totalSec = Math.floor(ms / 1000);
     const mins = Math.floor(totalSec / 60);
     const secs = totalSec % 60;
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  const getDeviceIcon = (type: string) => {
+    const t = type.toLowerCase();
+    if (t.includes('tv') || t.includes('cast')) return <Tv size={16} />;
+    if (t.includes('speaker') || t.includes('audio')) return <Speaker size={16} />;
+    if (t.includes('computer')) return <Laptop size={16} />;
+    return <Smartphone size={16} />;
   };
 
   // 1. Estado Não Conectado
@@ -160,12 +274,23 @@ export const SpotifyPlayer: React.FC = () => {
           </div>
           <div className="spotify-idle-info">
             <span className="spotify-idle-title">Spotify Conectado</span>
-            <span className="spotify-idle-sub">Abra o Spotify e dê play</span>
+            <span className="spotify-idle-sub">Escolha uma playlist ou dê play</span>
           </div>
+          <button
+            onClick={() => loadLibrary('playlists')}
+            className="spotify-btn-action-sm"
+            title="Abrir Playlists"
+          >
+            <ListMusic size={14} />
+            <span>Playlists</span>
+          </button>
           <button onClick={handleLogout} className="spotify-btn-ghost" title="Desconectar Spotify">
             <LogOut size={14} />
           </button>
         </div>
+
+        {/* Modal de Biblioteca quando ocioso */}
+        {isLibraryOpen && renderLibraryModal()}
       </div>
     );
   }
@@ -196,83 +321,312 @@ export const SpotifyPlayer: React.FC = () => {
     );
   }
 
-  // 4. Player Completo no Canto Inferior Esquerdo
+  // 4. Modal / Popover de Aparelhos (Spotify Connect)
+  function renderDevicesModal() {
+    return (
+      <div className="spotify-modal-overlay" onClick={() => setIsDevicesOpen(false)}>
+        <div className="spotify-devices-card" onClick={(e) => e.stopPropagation()}>
+          <div className="spotify-modal-header">
+            <div className="spotify-modal-title">
+              <Speaker size={18} className="text-green-400" />
+              <span>Ouvir em um aparelho</span>
+            </div>
+            <button onClick={() => setIsDevicesOpen(false)} className="spotify-close-btn">
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="spotify-devices-list">
+            {devices.length === 0 ? (
+              <p className="spotify-empty-text">Buscando aparelhos na rede...</p>
+            ) : (
+              devices.map((dev) => (
+                <button
+                  key={dev.id}
+                  onClick={() => handleTransferDevice(dev.id)}
+                  className={`spotify-device-item ${dev.isActive ? 'active' : ''}`}
+                >
+                  <div className="spotify-dev-icon">{getDeviceIcon(dev.type)}</div>
+                  <div className="spotify-dev-info">
+                    <span className="spotify-dev-name">{dev.name}</span>
+                    <span className="spotify-dev-type">
+                      {dev.isActive ? 'Tocando agora' : dev.type}
+                    </span>
+                  </div>
+                  {dev.isActive && <div className="spotify-dev-pulse" />}
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Slider de Volume do Aparelho Atual */}
+          <div className="spotify-volume-box">
+            <div className="spotify-volume-icon">
+              {volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={volume}
+              onChange={(e) => handleVolumeChange(Number(e.target.value))}
+              className="spotify-volume-slider"
+            />
+            <span className="spotify-volume-val">{volume}%</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 5. Modal / Gaveta de Biblioteca (Playlists, Recentes, Busca)
+  function renderLibraryModal() {
+    return (
+      <div className="spotify-modal-overlay" onClick={() => setIsLibraryOpen(false)}>
+        <div className="spotify-library-card" onClick={(e) => e.stopPropagation()}>
+          {/* Header com Abas */}
+          <div className="spotify-library-header">
+            <div className="spotify-tabs-row">
+              <button
+                className={`spotify-tab-btn ${libraryTab === 'playlists' ? 'active' : ''}`}
+                onClick={() => loadLibrary('playlists')}
+              >
+                <ListMusic size={16} />
+                <span>Minhas Playlists</span>
+              </button>
+              <button
+                className={`spotify-tab-btn ${libraryTab === 'recent' ? 'active' : ''}`}
+                onClick={() => loadLibrary('recent')}
+              >
+                <Clock size={16} />
+                <span>Recentes</span>
+              </button>
+              <button
+                className={`spotify-tab-btn ${libraryTab === 'search' ? 'active' : ''}`}
+                onClick={() => setLibraryTab('search')}
+              >
+                <Search size={16} />
+                <span>Buscar</span>
+              </button>
+            </div>
+            <button onClick={() => setIsLibraryOpen(false)} className="spotify-close-btn">
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Conteúdo da Aba */}
+          <div className="spotify-library-content">
+            {/* Aba 1: Playlists */}
+            {libraryTab === 'playlists' && (
+              <div className="spotify-playlists-grid">
+                {playlists.length === 0 ? (
+                  <p className="spotify-empty-text">Carregando suas playlists...</p>
+                ) : (
+                  playlists.map((pl) => (
+                    <div
+                      key={pl.id}
+                      onClick={() => handlePlayPlaylist(pl.uri)}
+                      className="spotify-playlist-card"
+                      title={pl.name}
+                    >
+                      <div className="spotify-pl-cover-wrapper">
+                        {pl.image ? (
+                          <img src={pl.image} alt={pl.name} className="spotify-pl-cover" />
+                        ) : (
+                          <div className="spotify-pl-placeholder">
+                            <Music size={28} />
+                          </div>
+                        )}
+                        <button className="spotify-pl-play-btn" title="Tocar Playlist">
+                          <Play size={18} fill="currentColor" />
+                        </button>
+                      </div>
+                      <h5 className="spotify-pl-title">{pl.name}</h5>
+                      <span className="spotify-pl-tracks">{pl.tracksTotal} músicas</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Aba 2: Músicas Recentes */}
+            {libraryTab === 'recent' && (
+              <div className="spotify-tracks-list">
+                {recentTracks.length === 0 ? (
+                  <p className="spotify-empty-text">Buscando músicas recentes...</p>
+                ) : (
+                  recentTracks.map((trk) => (
+                    <div
+                      key={`${trk.id}-${Math.random()}`}
+                      onClick={() => handlePlayTrack(trk.uri)}
+                      className="spotify-track-row"
+                    >
+                      <img src={trk.albumArt} alt={trk.name} className="spotify-row-art" />
+                      <div className="spotify-row-details">
+                        <span className="spotify-row-name">{trk.name}</span>
+                        <span className="spotify-row-artist">{trk.artists}</span>
+                      </div>
+                      <span className="spotify-row-duration">{formatTime(trk.durationMs)}</span>
+                      <button className="spotify-row-play">
+                        <Play size={14} fill="currentColor" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Aba 3: Buscar */}
+            {libraryTab === 'search' && (
+              <div className="spotify-search-wrapper">
+                <div className="spotify-search-bar">
+                  <Search size={18} className="text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="O que você quer ouvir hoje?"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    autoFocus
+                    className="spotify-search-input"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="spotify-clear-btn">
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="spotify-search-results">
+                  {isSearching ? (
+                    <p className="spotify-empty-text">Pesquisando no Spotify...</p>
+                  ) : searchResults.length > 0 ? (
+                    searchResults.map((trk) => (
+                      <div
+                        key={trk.id}
+                        onClick={() => handlePlayTrack(trk.uri)}
+                        className="spotify-track-row"
+                      >
+                        <img src={trk.albumArt} alt={trk.name} className="spotify-row-art" />
+                        <div className="spotify-row-details">
+                          <span className="spotify-row-name">{trk.name}</span>
+                          <span className="spotify-row-artist">{trk.artists}</span>
+                        </div>
+                        <span className="spotify-row-duration">{formatTime(trk.durationMs)}</span>
+                        <button className="spotify-row-play">
+                          <Play size={14} fill="currentColor" />
+                        </button>
+                      </div>
+                    ))
+                  ) : searchQuery.trim() ? (
+                    <p className="spotify-empty-text">Nenhuma música encontrada.</p>
+                  ) : (
+                    <p className="spotify-empty-text">Digite o nome de uma música ou artista acima.</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 6. Player Principal Completo
   const progressPercent = track.durationMs > 0 ? (track.progressMs / track.durationMs) * 100 : 0;
 
   return (
-    <div className="spotify-card-container">
-      {/* Topo do Card: Dispositivo & Minimizar */}
-      <div className="spotify-card-top">
-        <div className="spotify-device-tag">
-          <Volume2 size={12} className="text-green-400" />
-          <span>{track.deviceName}</span>
-        </div>
-        <div className="spotify-top-actions">
-          <button onClick={() => setIsMinimized(true)} className="spotify-btn-icon" title="Minimizar Player">
-            <ChevronDown size={14} />
+    <>
+      <div className="spotify-card-container">
+        {/* Topo do Card: Seletor de Aparelho & Biblioteca */}
+        <div className="spotify-card-top">
+          <button
+            onClick={loadDevices}
+            className="spotify-device-pill-btn"
+            title="Trocar aparelho onde a música toca"
+          >
+            <Speaker size={12} className="text-green-400" />
+            <span className="spotify-dev-pill-name">{track.deviceName}</span>
+            <ChevronDown size={12} />
           </button>
-          <button onClick={handleLogout} className="spotify-btn-icon" title="Desconectar Spotify">
-            <LogOut size={12} />
+
+          <div className="spotify-top-actions">
+            <button
+              onClick={() => loadLibrary('playlists')}
+              className="spotify-btn-icon"
+              title="Abrir Playlists e Biblioteca"
+            >
+              <ListMusic size={14} />
+            </button>
+            <button onClick={() => setIsMinimized(true)} className="spotify-btn-icon" title="Minimizar Player">
+              <ChevronDown size={14} />
+            </button>
+            <button onClick={handleLogout} className="spotify-btn-icon" title="Desconectar Spotify">
+              <LogOut size={12} />
+            </button>
+          </div>
+        </div>
+
+        {/* Meio: Capa & Informações da Faixa */}
+        <div className="spotify-track-body">
+          <div className="spotify-art-wrapper" onClick={() => loadLibrary('playlists')} title="Ver Playlists">
+            {track.albumArt ? (
+              <img
+                src={track.albumArt}
+                alt={track.name}
+                className={`spotify-album-cover ${track.isPlaying ? 'active' : ''}`}
+              />
+            ) : (
+              <div className="spotify-art-placeholder">
+                <Music size={24} />
+              </div>
+            )}
+            {track.isPlaying && <div className="spotify-art-glow" />}
+          </div>
+
+          <div className="spotify-track-details">
+            <h4 className="spotify-track-title" title={track.name}>
+              {track.name}
+            </h4>
+            <p className="spotify-track-artist" title={track.artists}>
+              {track.artists}
+            </p>
+          </div>
+        </div>
+
+        {/* Barra de Progresso */}
+        <div className="spotify-progress-container">
+          <div className="spotify-progress-bar">
+            <div className="spotify-progress-fill" style={{ width: `${progressPercent}%` }} />
+          </div>
+          <div className="spotify-time-labels">
+            <span>{formatTime(track.progressMs)}</span>
+            <span>{formatTime(track.durationMs)}</span>
+          </div>
+        </div>
+
+        {/* Botões de Ação */}
+        <div className="spotify-controls-row">
+          <button onClick={handlePrevious} className="spotify-ctrl-btn" title="Faixa Anterior">
+            <SkipBack size={18} />
+          </button>
+
+          <button
+            onClick={handleTogglePlay}
+            className={`spotify-ctrl-btn play-pause ${track.isPlaying ? 'playing' : ''}`}
+            title={track.isPlaying ? 'Pausar' : 'Reproduzir'}
+          >
+            {track.isPlaying ? <Pause size={20} /> : <Play size={20} />}
+          </button>
+
+          <button onClick={handleNext} className="spotify-ctrl-btn" title="Próxima Faixa">
+            <SkipForward size={18} />
           </button>
         </div>
       </div>
 
-      {/* Meio: Capa & Informações da Faixa */}
-      <div className="spotify-track-body">
-        <div className="spotify-art-wrapper">
-          {track.albumArt ? (
-            <img
-              src={track.albumArt}
-              alt={track.name}
-              className={`spotify-album-cover ${track.isPlaying ? 'active' : ''}`}
-            />
-          ) : (
-            <div className="spotify-art-placeholder">
-              <Music size={24} />
-            </div>
-          )}
-          {track.isPlaying && <div className="spotify-art-glow" />}
-        </div>
-
-        <div className="spotify-track-details">
-          <h4 className="spotify-track-title" title={track.name}>
-            {track.name}
-          </h4>
-          <p className="spotify-track-artist" title={track.artists}>
-            {track.artists}
-          </p>
-        </div>
-      </div>
-
-      {/* Barra de Progresso */}
-      <div className="spotify-progress-container">
-        <div className="spotify-progress-bar">
-          <div className="spotify-progress-fill" style={{ width: `${progressPercent}%` }} />
-        </div>
-        <div className="spotify-time-labels">
-          <span>{formatTime(track.progressMs)}</span>
-          <span>{formatTime(track.durationMs)}</span>
-        </div>
-      </div>
-
-      {/* Botões de Ação */}
-      <div className="spotify-controls-row">
-        <button onClick={handlePrevious} className="spotify-ctrl-btn" title="Faixa Anterior">
-          <SkipBack size={18} />
-        </button>
-
-        <button
-          onClick={handleTogglePlay}
-          className={`spotify-ctrl-btn play-pause ${track.isPlaying ? 'playing' : ''}`}
-          title={track.isPlaying ? 'Pausar' : 'Reproduzir'}
-        >
-          {track.isPlaying ? <Pause size={20} /> : <Play size={20} />}
-        </button>
-
-        <button onClick={handleNext} className="spotify-ctrl-btn" title="Próxima Faixa">
-          <SkipForward size={18} />
-        </button>
-      </div>
-    </div>
+      {/* Renderizar Modais se abertos */}
+      {isDevicesOpen && renderDevicesModal()}
+      {isLibraryOpen && renderLibraryModal()}
+    </>
   );
 };

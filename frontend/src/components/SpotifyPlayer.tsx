@@ -995,7 +995,7 @@ export const SpotifyPlayer: React.FC = () => {
                         Digite o nome de uma música, artista ou banda acima.
                       </p>
                       <div className="spotify-suggestion-pills">
-                        {['Sertanejo', 'Rock', 'Pop', 'Chitãozinho', 'Coldplay', 'Pagode'].map((sug) => (
+                        {['Sertanejo', 'Rock', 'Pop', 'Pagode', 'Coldplay'].map((sug) => (
                           <button
                             key={sug}
                             type="button"

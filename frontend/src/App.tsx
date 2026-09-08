@@ -5,9 +5,11 @@ import { CutawayHouse } from './components/CutawayHouse';
 import { TopBar } from './components/TopBar';
 import { SidePanel, type RoomDeviceItem } from './components/SidePanel';
 import { SettingsModal, type DeviceInfoItem } from './components/SettingsModal';
+import { SpotifyPlayer } from './components/SpotifyPlayer';
 import { automationPins } from './houseLayout';
 import type { Room } from './types';
 import { fetchDeviceStatus, sendTuyaCommand, fetchDeviceConfig } from './services/api';
+import { handleSpotifyCallback } from './services/spotify';
 
 export function App() {
   // Mapa de estados de iluminação da maquete 3D { [pinId]: boolean }
@@ -63,6 +65,17 @@ export function App() {
   useEffect(() => {
     loadConfig();
   }, [loadConfig]);
+
+  // Tratar retorno de login do Spotify OAuth PKCE (?code=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (code) {
+      handleSpotifyCallback(code).then(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      });
+    }
+  }, []);
 
   // Sincronização periódica com todos os dispositivos da casa
   const syncWithTuya = useCallback(async () => {
@@ -259,40 +272,17 @@ export function App() {
         isSyncing={isSyncing}
       />
 
-      {/* Botões de Ação de Câmera */}
-      <div style={{
-        position: 'absolute',
-        bottom: '24px',
-        left: '24px',
-        zIndex: 10,
-        display: 'flex',
-        gap: '8px',
-        background: 'rgba(255, 255, 255, 0.85)',
-        backdropFilter: 'blur(16px)',
-        padding: '6px 12px',
-        borderRadius: '16px',
-        border: '1px solid rgba(255, 255, 255, 0.9)',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.05)'
-      }}>
+      {/* HUD Inferior Esquerdo: Visão Geral da Casa & Spotify Player */}
+      <div className="bottom-left-hud">
         <button
           onClick={() => setSelectedRoom(null)}
-          style={{
-            background: 'none',
-            border: 'none',
-            fontSize: '12px',
-            fontWeight: 600,
-            color: '#1E293B',
-            cursor: 'pointer',
-            padding: '4px 8px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
+          className="overview-camera-btn"
           title="Ver Casa Inteira"
         >
-          <span>🏠 Visão Geral da Casa</span>
+          <span>🏠 Visão Geral</span>
         </button>
+
+        <SpotifyPlayer />
       </div>
 
       {/* Canvas 3D Isométrico Otimizado para Tablets */}

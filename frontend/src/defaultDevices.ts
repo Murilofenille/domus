@@ -19,6 +19,7 @@ export const DEFAULT_DEVICE_ROOMS: Record<string, string> = {
   "corredor_principal": "corredor-interno",
   "corredor_suite": "corredor-interno",
   "corredor_claraboia": "corredor-interno",
+  "termostato": "garage"
 };
 
 export const DEFAULT_CHANNEL_NAMES: Record<string, Record<string, string>> = {
@@ -306,6 +307,20 @@ export const DEFAULT_DEVICES_LIST: DeviceInfoItem[] = [
       switch_1: false
     },
     custom_channel_names: DEFAULT_CHANNEL_NAMES["lavanderia"],
+    hidden_channels: []
+  },
+  {
+    key: "termostato",
+    name: "Termostato",
+    id: "ebb44c0ed17053d7ba7c57",
+    online: true,
+    room_id: "garage",
+    switches: {
+      switch: true,
+      temp_current: 320,
+      temp_set: 32
+    },
+    custom_channel_names: {},
     hidden_channels: []
   }
 ];

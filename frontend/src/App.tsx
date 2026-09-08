@@ -8,6 +8,7 @@ import { SidePanel, type RoomDeviceItem } from './components/SidePanel';
 import { SettingsModal, type DeviceInfoItem } from './components/SettingsModal';
 import { SpotifyPlayer } from './components/SpotifyPlayer';
 import { ReviewModal } from './components/ReviewModal';
+import { LeisureDashboard } from './components/LeisureDashboard';
 import { rooms, automationPins } from './houseLayout';
 import { DEFAULT_DEVICES_LIST, DEFAULT_DEVICE_ROOMS, DEFAULT_CHANNEL_NAMES } from './defaultDevices';
 import type { Room } from './types';
@@ -76,6 +77,7 @@ export function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [viewMode, setViewMode] = useState<'3D' | '2D'>('3D');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'floorplan'>('dashboard');
 
   // Estados do Gerenciador de Dispositivos e Canais (com inicialização imediata e fallback resiliente)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -422,45 +424,67 @@ export function App() {
     return map;
   }, [devicesList, allDevicesData, deviceRooms, channelRooms, lightStates]);
 
+  // Temperatura da piscina em tempo real (obtida do termostato Tuya ou valor padrão)
+  const poolTemperature = useMemo(() => {
+    const termData = allDevicesData['termostato'] || allDevicesData['temperatura_piscina'] || {};
+    const current = termData.temp_current;
+    if (typeof current === 'number') {
+      return current > 100 ? current / 10 : current;
+    }
+    return 32;
+  }, [allDevicesData]);
+
   return (
     <div className="app-viewport">
-      {/* HUD Superior */}
-      <TopBar
-        isOnline={isOnline}
-        activeLightsCount={activeLightsCount}
-        totalLightsCount={totalLightsCount}
-        viewMode={viewMode}
-        onToggleViewMode={() => setViewMode(v => v === '3D' ? '2D' : '3D')}
-        onToggleAll={handleToggleAll}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenReview={() => setIsReviewOpen(true)}
-      />
-
-      {/* Painel Lateral com Controles Dinâmicos */}
-      <SidePanel
-        selectedRoom={selectedRoom}
-        onClose={() => setSelectedRoom(null)}
-        deviceSwitches={currentRoomSwitches}
-        customChannelNames={channelNames[currentRoomKey] || {}}
-        roomDevices={currentRoomDevices}
-        onToggleSwitch={handleToggleDeviceSwitch}
-        isSyncing={isSyncing}
-      />
-
-      {/* HUD Inferior Esquerdo: Spotify Player */}
-      <div className="bottom-left-hud">
-        <SpotifyPlayer />
-      </div>
-
-      {/* Alternância: Modo 2D Planta Baixa Pura vs Modo 3D Isométrico */}
-      {viewMode === '2D' ? (
-        <Floorplan2D
-          rooms={rooms}
-          roomActiveStates={roomActiveStates}
-          selectedRoomId={selectedRoom?.id}
-          onSelectRoom={(room) => setSelectedRoom(room)}
+      {activeTab === 'dashboard' ? (
+        <LeisureDashboard
+          onOpenFloorplan={() => setActiveTab('floorplan')}
+          onOpenReview={() => setIsReviewOpen(true)}
+          onToggleAllLights={handleToggleAll}
+          activeLightsCount={activeLightsCount}
+          totalLightsCount={totalLightsCount}
+          poolTemperature={poolTemperature}
         />
       ) : (
+        <>
+          {/* HUD Superior */}
+          <TopBar
+            isOnline={isOnline}
+            activeLightsCount={activeLightsCount}
+            totalLightsCount={totalLightsCount}
+            viewMode={viewMode}
+            onToggleViewMode={() => setViewMode(v => v === '3D' ? '2D' : '3D')}
+            onToggleAll={handleToggleAll}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenReview={() => setIsReviewOpen(true)}
+            onNavigateHome={() => setActiveTab('dashboard')}
+          />
+
+          {/* Painel Lateral com Controles Dinâmicos */}
+          <SidePanel
+            selectedRoom={selectedRoom}
+            onClose={() => setSelectedRoom(null)}
+            deviceSwitches={currentRoomSwitches}
+            customChannelNames={channelNames[currentRoomKey] || {}}
+            roomDevices={currentRoomDevices}
+            onToggleSwitch={handleToggleDeviceSwitch}
+            isSyncing={isSyncing}
+          />
+
+          {/* HUD Inferior Esquerdo: Spotify Player */}
+          <div className="bottom-left-hud">
+            <SpotifyPlayer />
+          </div>
+
+          {/* Alternância: Modo 2D Planta Baixa Pura vs Modo 3D Isométrico */}
+          {viewMode === '2D' ? (
+            <Floorplan2D
+              rooms={rooms}
+              roomActiveStates={roomActiveStates}
+              selectedRoomId={selectedRoom?.id}
+              onSelectRoom={(room) => setSelectedRoom(room)}
+            />
+          ) : (
         <div className="canvas-wrapper">
           <Canvas
             shadows
@@ -508,6 +532,8 @@ export function App() {
           </Canvas>
         </div>
       )}
+      </>
+    )}
 
       {/* Modal Gerenciador de Dispositivos e Canais */}
       <SettingsModal

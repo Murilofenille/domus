@@ -50,6 +50,8 @@ DEVICES = {
     "corredor_principal": {"name": "Corredor Principal", "id": "7753207334ab951d4101"},
     "corredor_suite": {"name": "Corredor Suíte", "id": "eb7ec51b1a94acaf7ffjqx"},
     "corredor_claraboia": {"name": "Corredor Claraboia", "id": "ebbfb1b732983a19det4ng"},
+    "termostato": {"name": "Termostato", "id": "ebb44c0ed17053d7ba7c57"},
+    "temperatura_piscina": {"name": "Temperatura Piscina", "id": "ebcefc3209dad58d10wpgv"},
 }
 
 class CommandRequest(BaseModel):

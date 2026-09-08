@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, Power, Settings, Maximize, Minimize, Star } from 'lucide-react';
+import { Wifi, Power, Settings, Maximize, Minimize, Star, Home } from 'lucide-react';
 
 interface TopBarProps {
   isOnline: boolean;
@@ -10,6 +10,7 @@ interface TopBarProps {
   onToggleAll: () => void;
   onOpenSettings: () => void;
   onOpenReview?: () => void;
+  onNavigateHome?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -20,7 +21,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleViewMode,
   onToggleAll,
   onOpenSettings,
-  onOpenReview
+  onOpenReview,
+  onNavigateHome
 }) => {
   const [time, setTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -70,6 +72,17 @@ export const TopBar: React.FC<TopBarProps> = ({
             }}
           />
         </div>
+
+        {onNavigateHome && (
+          <button
+            onClick={onNavigateHome}
+            className="topbar-home-btn"
+            title="Ir para a Tela Inicial / Hub de Lazer"
+          >
+            <Home size={14} />
+            <span>Início</span>
+          </button>
+        )}
       </div>
 
       {/* Estatísticas e Status */}

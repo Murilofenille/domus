@@ -444,12 +444,13 @@ export function App() {
     return 32;
   }, [allDevicesData]);
 
-  // 3 Interruptores em destaque para o Dashboard da Área de Lazer (conforme mockup do usuário)
+  // 4 Interruptores em destaque para o Dashboard da Área de Lazer (conforme mockup do usuário)
   const quickSwitches = useMemo(() => {
     const candidates = [
       { devKey: 'quarto_murilo', code: 'switch_1', defaultName: 'Luz Central Quarto' },
       { devKey: 'sala', code: 'switch_4', fallbackCode: 'switch_1', defaultName: 'Luz Central Sala' },
       { devKey: 'cozinha', code: 'switch_1', defaultName: 'Ilha Gourmet' },
+      { devKey: 'suite_master', code: 'switch_1', fallbackCode: 'switch_2', defaultName: 'Luz Suíte Master' },
     ];
 
     const switchesList: Array<{
@@ -481,12 +482,12 @@ export function App() {
     });
 
     // Se faltou algum candidato, preenche com canais de iluminação reais existentes
-    if (switchesList.length < 3) {
+    if (switchesList.length < 4) {
       devicesList.forEach(dev => {
-        if (switchesList.length >= 3) return;
+        if (switchesList.length >= 4) return;
         const devSwitches = allDevicesData[dev.key] || dev.switches || {};
         Object.entries(devSwitches).forEach(([code, val]) => {
-          if (switchesList.length >= 3) return;
+          if (switchesList.length >= 4) return;
           if (isLightSwitchChannel(code)) {
             const id = `${dev.key}_${code}`;
             if (!switchesList.some(s => s.id === id)) {

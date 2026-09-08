@@ -339,8 +339,9 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
     { id: '1', name: 'Luz Central Quarto', isOn: false, onToggle: () => {} },
     { id: '2', name: 'Luz Central Sala', isOn: false, onToggle: () => {} },
     { id: '3', name: 'Luz Gourmet', isOn: false, onToggle: () => {} },
+    { id: '4', name: 'Luz Suíte Master', isOn: false, onToggle: () => {} },
   ];
-  const displaySwitches = quickSwitches.length > 0 ? quickSwitches.slice(0, 3) : fallbackSwitches;
+  const displaySwitches = quickSwitches.length > 0 ? quickSwitches.slice(0, 4) : fallbackSwitches;
 
   return (
     <div className="leisure-dashboard-container">

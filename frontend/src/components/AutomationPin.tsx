@@ -1,6 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
+import { Lightbulb } from 'lucide-react';
 import * as THREE from 'three';
 
 interface AutomationPinProps {
@@ -19,137 +20,67 @@ export const AutomationPin: React.FC<AutomationPinProps> = ({
   isRealDevice = false
 }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const [hovered, setHovered] = useState(false);
 
-  // Animação sutil de flutuação apenas quando visível/interativo
+  // Levitação inercial suave para aspecto futurista
   useFrame((state) => {
     if (groupRef.current) {
       const t = state.clock.getElapsedTime();
-      groupRef.current.position.y = position[1] + Math.sin(t * 2 + position[0]) * 0.03;
+      groupRef.current.position.y = position[1] + Math.sin(t * 1.6 + position[0]) * 0.03;
     }
   });
 
-  const pinColor = isOn ? '#FFB703' : '#94A3B8';
-  const emissiveColor = isOn ? '#FFAA00' : '#000000';
-  const emissiveIntensity = isOn ? 1.4 : 0.0;
-
   return (
-    <group
-      ref={groupRef}
-      position={position}
-      onClick={(e) => {
-        e.stopPropagation();
-        onToggle();
-      }}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        setHovered(true);
-        document.body.style.cursor = 'pointer';
-      }}
-      onPointerOut={(e) => {
-        e.stopPropagation();
-        setHovered(false);
-        document.body.style.cursor = 'auto';
-      }}
-    >
-      {/* Luz realística emitida quando o switch está ligado (sem castShadow para máxima taxa de FPS em tablets) */}
+    <group ref={groupRef} position={position}>
+      {/* Luz realística projetada sobre o cômodo quando ligado */}
       {isOn && (
         <pointLight
           color="#FFE8B2"
-          intensity={2.8}
-          distance={5.0}
+          intensity={2.6}
+          distance={5.5}
           decay={2}
-          position={[0, -0.2, 0]}
+          position={[0, -0.3, 0]}
         />
       )}
 
-      {/* Halo de luz externo suave */}
+      {/* Brilho suave no piso/espaço do cômodo quando aceso */}
       {isOn && (
-        <mesh position={[0, 0, 0]}>
-          <sphereGeometry args={[0.26, 12, 12]} />
+        <mesh position={[0, -0.15, 0]}>
+          <sphereGeometry args={[0.22, 12, 12]} />
           <meshBasicMaterial
             color="#FFC300"
             transparent
-            opacity={0.35}
+            opacity={0.25}
             side={THREE.BackSide}
           />
         </mesh>
       )}
 
-      {/* Esfera do Pin (Lâmpada) */}
-      <mesh castShadow scale={hovered ? 1.15 : 1.0}>
-        <sphereGeometry args={[0.18, 16, 16]} />
-        <meshStandardMaterial
-          color={pinColor}
-          emissive={emissiveColor}
-          emissiveIntensity={emissiveIntensity}
-          roughness={0.2}
-          metalness={0.3}
-        />
-      </mesh>
-
-      {/* Anel indicador estilizado */}
-      <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.22, 0.02, 10, 20]} />
-        <meshStandardMaterial
-          color={isOn ? '#FFFFFF' : '#CBD5E1'}
-          emissive={isOn ? '#FFFFFF' : '#000000'}
-          emissiveIntensity={isOn ? 0.8 : 0}
-        />
-      </mesh>
-
-      {/* Cone ponteiro para baixo */}
-      <mesh position={[0, -0.28, 0]} rotation={[Math.PI, 0, 0]}>
-        <coneGeometry args={[0.10, 0.28, 14]} />
-        <meshStandardMaterial color="#FFFFFF" roughness={0.4} />
-      </mesh>
-
-      {/* Tooltip HTML 3D Flutuante moderno - Exibido apenas em hover para poupar GPU/DOM no tablet */}
-      {hovered && (
-        <Html
-          position={[0, 0.38, 0]}
-          center
-          distanceFactor={18}
-          style={{ pointerEvents: 'none' }}
+      {/* Plaqueta de Vidro Flutuante Estilo Vision Pro / AR (Sem interruptor mini) */}
+      <Html
+        position={[0, 0, 0]}
+        center
+        distanceFactor={22}
+        style={{ pointerEvents: 'auto', userSelect: 'none' }}
+      >
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle();
+          }}
+          className={`ar-room-badge ${isOn ? 'is-on' : 'is-off'}`}
+          title={`${name}: Toque para ${isOn ? 'Desligar' : 'Ligar'}`}
         >
-          <div style={{
-            background: isOn ? 'rgba(15, 23, 42, 0.95)' : 'rgba(30, 41, 59, 0.95)',
-            color: '#FFFFFF',
-            padding: '4px 10px',
-            borderRadius: '20px',
-            fontSize: '11px',
-            fontWeight: '600',
-            fontFamily: 'Inter, system-ui, sans-serif',
-            whiteSpace: 'nowrap',
-            boxShadow: isOn ? '0 0 15px rgba(255, 183, 3, 0.4)' : '0 2px 10px rgba(0,0,0,0.25)',
-            border: isOn ? '1px solid #FFB703' : '1px solid rgba(255,255,255,0.15)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'transform 0.15s ease'
-          }}>
-            <span style={{
-              width: '7px',
-              height: '7px',
-              borderRadius: '50%',
-              backgroundColor: isOn ? '#FFB703' : '#64748B',
-              boxShadow: isOn ? '0 0 8px #FFB703' : 'none'
-            }} />
-            <span>{name}</span>
-            {isRealDevice && (
-              <span style={{
-                background: '#3B82F6',
-                color: '#fff',
-                fontSize: '8px',
-                padding: '1px 5px',
-                borderRadius: '6px',
-                textTransform: 'uppercase'
-              }}>TUYA REAL</span>
-            )}
+          <div className="ar-badge-icon-box">
+            <Lightbulb size={13} className="ar-badge-icon" />
           </div>
-        </Html>
-      )}
+          <span className="ar-badge-name">{name}</span>
+          {isRealDevice && (
+            <span className="ar-badge-tag">TUYA</span>
+          )}
+        </div>
+      </Html>
     </group>
   );
 };
+
 

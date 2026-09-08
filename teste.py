@@ -1,8 +1,12 @@
+import os
+from dotenv import load_dotenv
 from tuya_connector import TuyaOpenAPI
 
-ACCESS_ID = "cw8xfypa89ykskhtmu4q"
-ACCESS_SECRET = "67d91e7bf68640bd9fa742affa83b941"
-API_ENDPOINT = "https://openapi.tuyaus.com"
+load_dotenv()
+
+ACCESS_ID = os.getenv("TUYA_ACCESS_ID", "")
+ACCESS_SECRET = os.getenv("TUYA_ACCESS_SECRET", "")
+API_ENDPOINT = os.getenv("TUYA_API_ENDPOINT", "https://openapi.tuyaus.com")
 
 DEVICE_ID = "7173100234ab95105538"
 

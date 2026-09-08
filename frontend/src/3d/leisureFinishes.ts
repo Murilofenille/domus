@@ -272,9 +272,10 @@ export function finishScene(
   const wall54 = byId.get(54);
   if (wall54) {
     wall54.scale.y = 2.8 / 5.8;
+    wall54.scale.x = 0.50; // Reduz o comprimento para não colidir com o tijolo
     wall54.material = blackWallMat;
     wall54.position.z -= 0.12; // Desloca para dentro do pátio
-    wall54.position.x += 0.08; // Desloca para frente (longe do fundo)
+    wall54.position.x += 0.70; // Desloca para frente (começa exatamente onde o tijolo termina)
     walls.push(wall54);
   }
 

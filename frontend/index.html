@@ -19,6 +19,8 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Spotify Web Playback SDK para tocar diretamente no navegador/tablet -->
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {

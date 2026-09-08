@@ -291,16 +291,8 @@ export function App() {
         isSyncing={isSyncing}
       />
 
-      {/* HUD Inferior Esquerdo: Visão Geral da Casa & Spotify Player */}
+      {/* HUD Inferior Esquerdo: Spotify Player */}
       <div className="bottom-left-hud">
-        <button
-          onClick={() => setSelectedRoom(null)}
-          className="overview-camera-btn"
-          title="Ver Casa Inteira"
-        >
-          <span>🏠 Visão Geral</span>
-        </button>
-
         <SpotifyPlayer />
       </div>
 

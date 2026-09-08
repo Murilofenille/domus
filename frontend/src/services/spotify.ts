@@ -1,11 +1,23 @@
 /**
- * Serviço de Integração Spotify Web API usando OAuth 2.0 PKCE
+ * Serviço de Integração Spotify Web API usando OAuth 2.0 PKCE + Spotify Web Playback SDK
  */
+
+declare global {
+  interface Window {
+    onSpotifyWebPlaybackSDKReady?: () => void;
+    Spotify?: any;
+  }
+}
 
 const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '922729d9e3254a6294cecf9861003481';
 const TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';
 const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
+
+// Escopos estendidos incluindo streaming e leitura de perfil para o Web Playback SDK
 const SCOPES = [
+  'streaming',
+  'user-read-email',
+  'user-read-private',
   'user-read-playback-state',
   'user-modify-playback-state',
   'user-read-currently-playing',
@@ -34,6 +46,7 @@ export interface SpotifyDevice {
   name: string;
   type: string;
   isActive: boolean;
+  isLocal?: boolean;
   volumePercent: number;
 }
 
@@ -55,8 +68,13 @@ export interface SpotifySearchItem {
   durationMs: number;
 }
 
+export interface PlayResult {
+  success: boolean;
+  error?: 'NO_ACTIVE_DEVICE' | 'PREMIUM_REQUIRED' | 'AUTH_ERROR' | 'UNKNOWN';
+  message?: string;
+}
+
 function getRedirectUri(): string {
-  // Retorna a URL base limpa com barra no final para casar exatamente com o dashboard do Spotify
   return window.location.origin + '/';
 }
 
@@ -98,15 +116,13 @@ export async function loginWithSpotify(): Promise<void> {
     code_challenge_method: 'S256',
     code_challenge: codeChallenge,
     redirect_uri: redirectUri,
-    state: codeVerifier, // Passamos o verifier dentro do state para resgatá-lo mesmo se abrir em outro app/janela!
+    state: codeVerifier,
   });
 
   const authUrl = `${AUTH_ENDPOINT}?${params.toString()}`;
 
-  // Tenta abrir em popup para manter o PWA aberto
   const popup = window.open(authUrl, 'spotify_login', 'width=500,height=700');
   if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-    // Se o navegador bloquear o popup, navega diretamente
     window.location.href = authUrl;
   }
 }
@@ -159,9 +175,12 @@ export async function handleSpotifyCallback(code: string, stateVerifier?: string
 /**
  * Renova o access token usando o refresh token
  */
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = window.localStorage.getItem('spotify_refresh_token');
-  if (!refreshToken) return null;
+  if (!refreshToken) {
+    console.warn('Nenhum refresh token encontrado.');
+    return null;
+  }
 
   const payload = {
     method: 'POST',
@@ -186,6 +205,7 @@ async function refreshAccessToken(): Promise<string | null> {
       }
       const expiresAt = Date.now() + (data.expires_in || 3600) * 1000;
       window.localStorage.setItem('spotify_token_expires_at', expiresAt.toString());
+      console.log('Token Spotify renovado com sucesso!');
       return data.access_token;
     }
     return null;
@@ -204,33 +224,88 @@ export async function getValidAccessToken(): Promise<string | null> {
 
   if (!token) return null;
 
-  // Se expirar em menos de 60 segundos, renova
-  if (Date.now() > expiresAt - 60000) {
-    return await refreshAccessToken();
+  // Se expirar em menos de 120 segundos, renova proativamente
+  if (Date.now() > expiresAt - 120000) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return refreshed;
   }
 
   return token;
 }
 
 /**
+ * Wrapper centralizado para requisições da Spotify API com tratamento automático de 401
+ */
+export async function spotifyFetch(url: string, options: RequestInit = {}): Promise<Response | null> {
+  let token = await getValidAccessToken();
+  if (!token) return null;
+
+  const headers = new Headers(options.headers || {});
+  headers.set('Authorization', `Bearer ${token}`);
+
+  let res: Response;
+  try {
+    res = await fetch(url, { ...options, headers });
+  } catch (err) {
+    console.error('Erro de rede ao chamar Spotify API:', err);
+    return null;
+  }
+
+  // Se recebeu 401 (token expirado), tenta renovar imediatamente e repetir a requisição
+  if (res.status === 401) {
+    console.warn('Spotify retornou 401 Unauthorized. Tentando renovação de emergência...');
+    token = await refreshAccessToken();
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+      try {
+        res = await fetch(url, { ...options, headers });
+      } catch (err) {
+        console.error('Erro de rede na repetição da chamada:', err);
+        return null;
+      }
+    } else {
+      console.warn('Não foi possível renovar sessão do Spotify.');
+      return res;
+    }
+  }
+
+  return res;
+}
+
+/**
+ * Desconecta a conta do Spotify
+ */
+export function logoutSpotify(): void {
+  window.localStorage.removeItem('spotify_access_token');
+  window.localStorage.removeItem('spotify_refresh_token');
+  window.localStorage.removeItem('spotify_token_expires_at');
+  window.localStorage.removeItem('spotify_code_verifier');
+  if (webPlayerInstance) {
+    try {
+      webPlayerInstance.disconnect();
+    } catch {}
+    webPlayerInstance = null;
+  }
+}
+
+/**
+ * Verifica se já existe uma sessão salva do Spotify
+ */
+export function isSpotifyConnected(): boolean {
+  return !!window.localStorage.getItem('spotify_access_token');
+}
+
+/**
  * Busca o estado de reprodução atual do Spotify
  */
 export async function fetchPlaybackState(): Promise<SpotifyTrack | null> {
-  const token = await getValidAccessToken();
-  if (!token) return null;
+  const res = await spotifyFetch('https://api.spotify.com/v1/me/player');
+  if (!res || res.status === 204 || !res.ok) {
+    return null;
+  }
 
   try {
-    const response = await fetch('https://api.spotify.com/v1/me/player', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.status === 204 || response.status > 400) {
-      return null;
-    }
-
-    const data = await response.json();
+    const data = await res.json();
     if (!data || !data.item) return null;
 
     const item = data.item;
@@ -251,7 +326,7 @@ export async function fetchPlaybackState(): Promise<SpotifyTrack | null> {
       volumePercent: data.device?.volume_percent ?? 50,
     };
   } catch (err) {
-    console.error('Erro ao buscar reprodução Spotify:', err);
+    console.error('Erro ao processar dados de reprodução:', err);
     return null;
   }
 }
@@ -260,98 +335,45 @@ export async function fetchPlaybackState(): Promise<SpotifyTrack | null> {
  * Alterna entre Play e Pause
  */
 export async function toggleSpotifyPlay(isPlaying: boolean): Promise<boolean> {
-  const token = await getValidAccessToken();
-  if (!token) return false;
-
   const endpoint = isPlaying
     ? 'https://api.spotify.com/v1/me/player/pause'
     : 'https://api.spotify.com/v1/me/player/play';
 
-  try {
-    const res = await fetch(endpoint, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.status === 204 || res.ok;
-  } catch (err) {
-    console.error('Erro ao alternar play/pause:', err);
-    return false;
-  }
+  const res = await spotifyFetch(endpoint, { method: 'PUT' });
+  return !!res && (res.status === 204 || res.ok);
 }
 
 /**
  * Pula para a próxima música
  */
 export async function nextSpotifyTrack(): Promise<boolean> {
-  const token = await getValidAccessToken();
-  if (!token) return false;
-
-  try {
-    const res = await fetch('https://api.spotify.com/v1/me/player/next', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.status === 204 || res.ok;
-  } catch (err) {
-    console.error('Erro ao pular faixa:', err);
-    return false;
-  }
+  const res = await spotifyFetch('https://api.spotify.com/v1/me/player/next', { method: 'POST' });
+  return !!res && (res.status === 204 || res.ok);
 }
 
 /**
  * Volta para a música anterior
  */
 export async function previousSpotifyTrack(): Promise<boolean> {
-  const token = await getValidAccessToken();
-  if (!token) return false;
-
-  try {
-    const res = await fetch('https://api.spotify.com/v1/me/player/previous', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.status === 204 || res.ok;
-  } catch (err) {
-    console.error('Erro ao voltar faixa:', err);
-    return false;
-  }
-}
-
-/**
- * Desconecta a conta do Spotify
- */
-export function logoutSpotify(): void {
-  window.localStorage.removeItem('spotify_access_token');
-  window.localStorage.removeItem('spotify_refresh_token');
-  window.localStorage.removeItem('spotify_token_expires_at');
-  window.localStorage.removeItem('spotify_code_verifier');
-}
-
-/**
- * Verifica se já existe uma sessão salva do Spotify
- */
-export function isSpotifyConnected(): boolean {
-  return !!window.localStorage.getItem('spotify_access_token');
+  const res = await spotifyFetch('https://api.spotify.com/v1/me/player/previous', { method: 'POST' });
+  return !!res && (res.status === 204 || res.ok);
 }
 
 /**
  * Busca todos os aparelhos de som disponíveis na casa (Echo, Smart TV, Tablet, PC...)
  */
 export async function fetchAvailableDevices(): Promise<SpotifyDevice[]> {
-  const token = await getValidAccessToken();
-  if (!token) return [];
+  const res = await spotifyFetch('https://api.spotify.com/v1/me/player/devices');
+  if (!res || !res.ok) return [];
 
   try {
-    const res = await fetch('https://api.spotify.com/v1/me/player/devices', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return [];
     const data = await res.json();
     return (data.devices || []).map((d: any) => ({
       id: d.id,
       name: d.name,
       type: d.type,
       isActive: !!d.is_active,
+      isLocal: d.id === localWebPlayerDeviceId,
       volumePercent: d.volume_percent ?? 50,
     }));
   } catch (err) {
@@ -364,70 +386,50 @@ export async function fetchAvailableDevices(): Promise<SpotifyDevice[]> {
  * Transfere a reprodução de áudio para outro aparelho (Spotify Connect)
  */
 export async function transferSpotifyPlayback(deviceId: string, play: boolean = true): Promise<boolean> {
-  const token = await getValidAccessToken();
-  if (!token) return false;
-
-  try {
-    const res = await fetch('https://api.spotify.com/v1/me/player', {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        device_ids: [deviceId],
-        play,
-      }),
-    });
-    return res.status === 204 || res.ok;
-  } catch (err) {
-    console.error('Erro ao transferir reprodução:', err);
-    return false;
-  }
+  const res = await spotifyFetch('https://api.spotify.com/v1/me/player', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      device_ids: [deviceId],
+      play,
+    }),
+  });
+  return !!res && (res.status === 204 || res.ok);
 }
 
 /**
  * Ajusta o volume do aparelho ativo (0 a 100)
  */
 export async function setSpotifyVolume(volumePercent: number): Promise<boolean> {
-  const token = await getValidAccessToken();
-  if (!token) return false;
-
-  try {
-    const res = await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${Math.round(volumePercent)}`, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.status === 204 || res.ok;
-  } catch (err) {
-    console.error('Erro ao ajustar volume:', err);
-    return false;
-  }
+  const res = await spotifyFetch(
+    `https://api.spotify.com/v1/me/player/volume?volume_percent=${Math.round(volumePercent)}`,
+    { method: 'PUT' }
+  );
+  return !!res && (res.status === 204 || res.ok);
 }
 
 /**
  * Busca as playlists do usuário
  */
 export async function fetchUserPlaylists(): Promise<SpotifyPlaylist[]> {
-  const token = await getValidAccessToken();
-  if (!token) return [];
+  const res = await spotifyFetch('https://api.spotify.com/v1/me/playlists?limit=50');
+  if (!res || !res.ok) {
+    console.warn('Falha ao buscar playlists do usuário. Status:', res?.status);
+    return [];
+  }
 
   try {
-    const res = await fetch('https://api.spotify.com/v1/me/playlists?limit=30', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return [];
     const data = await res.json();
-    return (data.items || []).map((p: any) => ({
+    return (data.items || []).filter((p: any) => p && p.id).map((p: any) => ({
       id: p.id,
       name: p.name,
       description: p.description || '',
-      image: p.images?.[0]?.url || '',
+      image: p.images?.[0]?.url || p.images?.[1]?.url || '',
       uri: p.uri,
       tracksTotal: p.tracks?.total || 0,
     }));
   } catch (err) {
-    console.error('Erro ao buscar playlists:', err);
+    console.error('Erro ao analisar playlists:', err);
     return [];
   }
 }
@@ -436,28 +438,27 @@ export async function fetchUserPlaylists(): Promise<SpotifyPlaylist[]> {
  * Busca as músicas tocadas recentemente
  */
 export async function fetchRecentlyPlayed(): Promise<SpotifySearchItem[]> {
-  const token = await getValidAccessToken();
-  if (!token) return [];
+  const res = await spotifyFetch('https://api.spotify.com/v1/me/player/recently-played?limit=25');
+  if (!res || !res.ok) {
+    console.warn('Falha ao buscar recentes. Status:', res?.status);
+    return [];
+  }
 
   try {
-    const res = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=20', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return [];
     const data = await res.json();
-    return (data.items || []).map((item: any) => {
+    return (data.items || []).filter((i: any) => i && i.track).map((item: any) => {
       const track = item.track;
       return {
         id: track.id,
         name: track.name,
         artists: (track.artists || []).map((a: any) => a.name).join(', '),
-        albumArt: track.album?.images?.[0]?.url || '',
+        albumArt: track.album?.images?.[0]?.url || track.album?.images?.[1]?.url || '',
         uri: track.uri,
         durationMs: track.duration_ms || 0,
       };
     });
   } catch (err) {
-    console.error('Erro ao buscar recentes:', err);
+    console.error('Erro ao analisar recentes:', err);
     return [];
   }
 }
@@ -466,81 +467,223 @@ export async function fetchRecentlyPlayed(): Promise<SpotifySearchItem[]> {
  * Pesquisa faixas no Spotify
  */
 export async function searchSpotify(query: string): Promise<SpotifySearchItem[]> {
-  const token = await getValidAccessToken();
-  if (!token || !query.trim()) return [];
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const res = await spotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(trimmed)}&type=track&limit=20`);
+  if (!res || !res.ok) {
+    console.warn('Falha na busca Spotify. Status:', res?.status);
+    return [];
+  }
 
   try {
-    const encoded = encodeURIComponent(query.trim());
-    const res = await fetch(`https://api.spotify.com/v1/search?q=${encoded}&type=track&limit=15`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return [];
     const data = await res.json();
     return (data.tracks?.items || []).map((track: any) => ({
       id: track.id,
       name: track.name,
       artists: (track.artists || []).map((a: any) => a.name).join(', '),
-      albumArt: track.album?.images?.[0]?.url || '',
+      albumArt: track.album?.images?.[0]?.url || track.album?.images?.[1]?.url || '',
       uri: track.uri,
       durationMs: track.duration_ms || 0,
     }));
   } catch (err) {
-    console.error('Erro na pesquisa Spotify:', err);
+    console.error('Erro ao processar busca:', err);
     return [];
   }
 }
 
 /**
- * Toca um contexto (Playlist ou Álbum)
+ * Encontra um dispositivo alvo automático caso nenhum esteja fornecido
  */
-export async function playSpotifyContext(contextUri: string, deviceId?: string): Promise<boolean> {
-  const token = await getValidAccessToken();
-  if (!token) return false;
+async function resolveTargetDeviceId(providedDeviceId?: string): Promise<string | undefined> {
+  if (providedDeviceId) return providedDeviceId;
+  if (localWebPlayerDeviceId) return localWebPlayerDeviceId;
 
-  const url = deviceId
-    ? `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`
-    : 'https://api.spotify.com/v1/me/player/play';
-
-  try {
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ context_uri: contextUri }),
-    });
-    return res.status === 204 || res.ok;
-  } catch (err) {
-    console.error('Erro ao tocar contexto:', err);
-    return false;
-  }
+  const devices = await fetchAvailableDevices();
+  const active = devices.find((d) => d.isActive);
+  if (active) return active.id;
+  if (devices.length > 0) return devices[0].id;
+  return undefined;
 }
 
 /**
- * Toca uma faixa específica
+ * Toca um contexto (Playlist ou Álbum) com resolução automática de dispositivo e captura de erros
  */
-export async function playSpotifyTrack(trackUri: string, deviceId?: string): Promise<boolean> {
-  const token = await getValidAccessToken();
-  if (!token) return false;
-
-  const url = deviceId
-    ? `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`
+export async function playSpotifyContext(contextUri: string, targetDeviceId?: string): Promise<PlayResult> {
+  const resolvedDeviceId = await resolveTargetDeviceId(targetDeviceId);
+  const url = resolvedDeviceId
+    ? `https://api.spotify.com/v1/me/player/play?device_id=${resolvedDeviceId}`
     : 'https://api.spotify.com/v1/me/player/play';
 
-  try {
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ uris: [trackUri] }),
-    });
-    return res.status === 204 || res.ok;
-  } catch (err) {
-    console.error('Erro ao tocar faixa:', err);
-    return false;
+  const res = await spotifyFetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ context_uri: contextUri }),
+  });
+
+  if (!res) {
+    return { success: false, error: 'AUTH_ERROR', message: 'Sessão do Spotify não autenticada.' };
   }
+
+  if (res.status === 204 || res.ok) {
+    return { success: true };
+  }
+
+  if (res.status === 404) {
+    return {
+      success: false,
+      error: 'NO_ACTIVE_DEVICE',
+      message: 'Nenhum aparelho ativo encontrado. Abra o Spotify ou clique em "Tocar neste Aparelho".',
+    };
+  }
+
+  if (res.status === 403) {
+    return {
+      success: false,
+      error: 'PREMIUM_REQUIRED',
+      message: 'O Spotify exige uma conta Premium para iniciar músicas remotamente.',
+    };
+  }
+
+  return { success: false, error: 'UNKNOWN', message: `Erro ao reproduzir (Status ${res.status}).` };
 }
 
+/**
+ * Toca uma faixa específica com resolução automática de dispositivo e captura de erros
+ */
+export async function playSpotifyTrack(trackUri: string, targetDeviceId?: string): Promise<PlayResult> {
+  const resolvedDeviceId = await resolveTargetDeviceId(targetDeviceId);
+  const url = resolvedDeviceId
+    ? `https://api.spotify.com/v1/me/player/play?device_id=${resolvedDeviceId}`
+    : 'https://api.spotify.com/v1/me/player/play';
+
+  const res = await spotifyFetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uris: [trackUri] }),
+  });
+
+  if (!res) {
+    return { success: false, error: 'AUTH_ERROR', message: 'Sessão do Spotify não autenticada.' };
+  }
+
+  if (res.status === 204 || res.ok) {
+    return { success: true };
+  }
+
+  if (res.status === 404) {
+    return {
+      success: false,
+      error: 'NO_ACTIVE_DEVICE',
+      message: 'Nenhum aparelho ativo encontrado. Abra o Spotify ou clique em "Tocar neste Aparelho".',
+    };
+  }
+
+  if (res.status === 403) {
+    return {
+      success: false,
+      error: 'PREMIUM_REQUIRED',
+      message: 'O Spotify exige uma conta Premium para iniciar músicas remotamente.',
+    };
+  }
+
+  return { success: false, error: 'UNKNOWN', message: `Erro ao reproduzir (Status ${res.status}).` };
+}
+
+/* =========================================================================
+ * Integração com Spotify Web Playback SDK (Tocar no Navegador / Tablet DOMUS)
+ * ========================================================================= */
+
+let webPlayerInstance: any = null;
+let localWebPlayerDeviceId: string | null = null;
+
+export function getLocalDeviceId(): string | null {
+  return localWebPlayerDeviceId;
+}
+
+export function isLocalPlayerReady(): boolean {
+  return !!localWebPlayerDeviceId;
+}
+
+export interface WebPlayerCallbacks {
+  onReady?: (deviceId: string) => void;
+  onNotReady?: () => void;
+  onPlayerStateChanged?: (state: any) => void;
+  onError?: (type: string, message: string) => void;
+}
+
+/**
+ * Inicializa o Spotify Web Playback SDK no tablet / navegador
+ */
+export function initSpotifyWebPlayer(callbacks: WebPlayerCallbacks): void {
+  if (!isSpotifyConnected()) return;
+  if (webPlayerInstance) return; // Já inicializado
+
+  const setupPlayer = () => {
+    if (!window.Spotify || !window.Spotify.Player) {
+      console.warn('Spotify Web Playback SDK ainda não disponível.');
+      return;
+    }
+
+    try {
+      const player = new window.Spotify.Player({
+        name: 'DOMUS (Este Dispositivo)',
+        getOAuthToken: (cb: (token: string) => void) => {
+          getValidAccessToken().then((token) => {
+            if (token) cb(token);
+          });
+        },
+        volume: 0.8,
+      });
+
+      player.addListener('ready', ({ device_id }: { device_id: string }) => {
+        console.log('DOMUS Web Player pronto com ID:', device_id);
+        localWebPlayerDeviceId = device_id;
+        callbacks.onReady?.(device_id);
+      });
+
+      player.addListener('not_ready', () => {
+        console.warn('DOMUS Web Player desconectado.');
+        localWebPlayerDeviceId = null;
+        callbacks.onNotReady?.();
+      });
+
+      player.addListener('player_state_changed', (state: any) => {
+        callbacks.onPlayerStateChanged?.(state);
+      });
+
+      player.addListener('initialization_error', ({ message }: { message: string }) => {
+        console.error('Erro de inicialização do Spotify Player:', message);
+        callbacks.onError?.('initialization_error', message);
+      });
+
+      player.addListener('authentication_error', ({ message }: { message: string }) => {
+        console.error('Erro de autenticação do Spotify Player:', message);
+        callbacks.onError?.('authentication_error', message);
+      });
+
+      player.addListener('account_error', ({ message }: { message: string }) => {
+        console.warn('Aviso de conta Spotify (Premium necessário para tocar no navegador):', message);
+        callbacks.onError?.('account_error', message);
+      });
+
+      player.connect().then((success: boolean) => {
+        if (success) {
+          console.log('Conexão ao Spotify Web Playback SDK estabelecida com sucesso!');
+        }
+      });
+
+      webPlayerInstance = player;
+    } catch (err) {
+      console.error('Erro ao instanciar Spotify.Player:', err);
+    }
+  };
+
+  if (window.Spotify && window.Spotify.Player) {
+    setupPlayer();
+  } else {
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      setupPlayer();
+    };
+  }
+}

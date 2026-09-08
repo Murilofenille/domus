@@ -17,6 +17,8 @@ import {
   Search,
   ListMusic,
   Clock,
+  RotateCw,
+  AlertCircle,
   X
 } from 'lucide-react';
 import {
@@ -35,6 +37,8 @@ import {
   searchSpotify,
   playSpotifyContext,
   playSpotifyTrack,
+  initSpotifyWebPlayer,
+  getLocalDeviceId,
   type SpotifyTrack,
   type SpotifyDevice,
   type SpotifyPlaylist,
@@ -59,7 +63,47 @@ export const SpotifyPlayer: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchResults, setSearchResults] = useState<SpotifySearchItem[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [isLoadingPlaylists, setIsLoadingPlaylists] = useState<boolean>(false);
+  const [isLoadingRecent, setIsLoadingRecent] = useState<boolean>(false);
   const [volume, setVolume] = useState<number>(50);
+
+  // Mensagens e Alertas
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [localDeviceId, setLocalDeviceId] = useState<string | null>(null);
+
+  const showAlert = (msg: string) => {
+    setAlertMessage(msg);
+    setTimeout(() => {
+      setAlertMessage(null);
+    }, 6000);
+  };
+
+  // Inicializa o Web Playback SDK para transformar o DOMUS em caixa de som
+  useEffect(() => {
+    if (!connected) return;
+
+    initSpotifyWebPlayer({
+      onReady: (devId) => {
+        setLocalDeviceId(devId);
+      },
+      onNotReady: () => {
+        setLocalDeviceId(null);
+      },
+      onPlayerStateChanged: (state) => {
+        if (state) {
+          syncPlayback();
+        }
+      },
+      onError: (type, message) => {
+        if (type === 'account_error') {
+          console.warn('Spotify Web Playback SDK requer conta Premium:', message);
+        }
+      }
+    });
+
+    const currentLocal = getLocalDeviceId();
+    if (currentLocal) setLocalDeviceId(currentLocal);
+  }, [connected]);
 
   // Busca periódica do status da música
   const syncPlayback = useCallback(async () => {
@@ -76,7 +120,7 @@ export const SpotifyPlayer: React.FC = () => {
     }
   }, []);
 
-  // Escutar eventos de login vindos de outras abas/popups ou ao voltar o foco para o PWA
+  // Escutar eventos de login vindos de outras abas/popups ou foco
   useEffect(() => {
     let bc: BroadcastChannel | null = null;
     try {
@@ -126,7 +170,7 @@ export const SpotifyPlayer: React.FC = () => {
     if (!connected) return;
 
     syncPlayback();
-    const delay = track?.isPlaying ? 2800 : 6000;
+    const delay = track?.isPlaying ? 3000 : 7000;
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         syncPlayback();
@@ -143,16 +187,30 @@ export const SpotifyPlayer: React.FC = () => {
     setIsDevicesOpen(true);
   };
 
+  // Carregar playlists com estado de loading explícito
+  const refreshPlaylists = async () => {
+    setIsLoadingPlaylists(true);
+    const list = await fetchUserPlaylists();
+    setPlaylists(list);
+    setIsLoadingPlaylists(false);
+  };
+
+  // Carregar músicas recentes com estado de loading explícito
+  const refreshRecent = async () => {
+    setIsLoadingRecent(true);
+    const list = await fetchRecentlyPlayed();
+    setRecentTracks(list);
+    setIsLoadingRecent(false);
+  };
+
   // Carregar playlists ou recentes
   const loadLibrary = async (tab: 'playlists' | 'recent' | 'search') => {
     setLibraryTab(tab);
     setIsLibraryOpen(true);
     if (tab === 'playlists' && playlists.length === 0) {
-      const list = await fetchUserPlaylists();
-      setPlaylists(list);
+      await refreshPlaylists();
     } else if (tab === 'recent' && recentTracks.length === 0) {
-      const list = await fetchRecentlyPlayed();
-      setRecentTracks(list);
+      await refreshRecent();
     }
   };
 
@@ -167,7 +225,7 @@ export const SpotifyPlayer: React.FC = () => {
       const res = await searchSpotify(searchQuery);
       setSearchResults(res);
       setIsSearching(false);
-    }, 400);
+    }, 450);
 
     return () => clearTimeout(timer);
   }, [searchQuery, libraryTab]);
@@ -179,8 +237,11 @@ export const SpotifyPlayer: React.FC = () => {
     const prevPlaying = track.isPlaying;
     setTrack({ ...track, isPlaying: !prevPlaying });
 
-    await toggleSpotifyPlay(prevPlaying);
-    setTimeout(syncPlayback, 400);
+    const ok = await toggleSpotifyPlay(prevPlaying);
+    if (!ok) {
+      showAlert('Não foi possível alternar a música. Verifique se o Spotify está aberto ou tente transferir para este dispositivo.');
+    }
+    setTimeout(syncPlayback, 500);
     setIsBusy(false);
   };
 
@@ -188,7 +249,7 @@ export const SpotifyPlayer: React.FC = () => {
     if (isBusy) return;
     setIsBusy(true);
     await nextSpotifyTrack();
-    setTimeout(syncPlayback, 500);
+    setTimeout(syncPlayback, 600);
     setIsBusy(false);
   };
 
@@ -196,14 +257,28 @@ export const SpotifyPlayer: React.FC = () => {
     if (isBusy) return;
     setIsBusy(true);
     await previousSpotifyTrack();
-    setTimeout(syncPlayback, 500);
+    setTimeout(syncPlayback, 600);
     setIsBusy(false);
   };
 
   const handleTransferDevice = async (deviceId: string) => {
-    await transferSpotifyPlayback(deviceId, true);
+    setIsBusy(true);
+    const ok = await transferSpotifyPlayback(deviceId, true);
     setIsDevicesOpen(false);
-    setTimeout(syncPlayback, 600);
+    if (!ok) {
+      showAlert('Não foi possível transferir para o aparelho selecionado.');
+    }
+    setTimeout(syncPlayback, 700);
+    setIsBusy(false);
+  };
+
+  const handlePlayOnThisDevice = async () => {
+    const devId = localDeviceId || getLocalDeviceId();
+    if (!devId) {
+      showAlert('O player deste navegador está carregando ou sua conta não possui Spotify Premium.');
+      return;
+    }
+    await handleTransferDevice(devId);
   };
 
   const handleVolumeChange = async (newVol: number) => {
@@ -212,15 +287,43 @@ export const SpotifyPlayer: React.FC = () => {
   };
 
   const handlePlayPlaylist = async (uri: string) => {
-    await playSpotifyContext(uri);
+    setIsBusy(true);
+    const result = await playSpotifyContext(uri, track?.deviceId || localDeviceId || undefined);
+    setIsBusy(false);
+
+    if (!result.success) {
+      if (result.error === 'PREMIUM_REQUIRED') {
+        showAlert('⚠️ O Spotify exige uma conta Premium para iniciar músicas remotamente por API.');
+      } else if (result.error === 'NO_ACTIVE_DEVICE') {
+        showAlert('⚠️ Nenhum aparelho com Spotify encontrado aberto. Abra o Spotify no seu celular/PC ou conecte o som deste dispositivo.');
+      } else {
+        showAlert(result.message || 'Erro ao iniciar playlist.');
+      }
+      return;
+    }
+
     setIsLibraryOpen(false);
-    setTimeout(syncPlayback, 600);
+    setTimeout(syncPlayback, 700);
   };
 
   const handlePlayTrack = async (uri: string) => {
-    await playSpotifyTrack(uri);
+    setIsBusy(true);
+    const result = await playSpotifyTrack(uri, track?.deviceId || localDeviceId || undefined);
+    setIsBusy(false);
+
+    if (!result.success) {
+      if (result.error === 'PREMIUM_REQUIRED') {
+        showAlert('⚠️ O Spotify exige uma conta Premium para iniciar músicas remotamente por API.');
+      } else if (result.error === 'NO_ACTIVE_DEVICE') {
+        showAlert('⚠️ Nenhum aparelho com Spotify encontrado aberto. Abra o Spotify no seu celular/PC ou conecte o som deste dispositivo.');
+      } else {
+        showAlert(result.message || 'Erro ao iniciar música.');
+      }
+      return;
+    }
+
     setIsLibraryOpen(false);
-    setTimeout(syncPlayback, 600);
+    setTimeout(syncPlayback, 700);
   };
 
   const handleLogout = () => {
@@ -284,12 +387,24 @@ export const SpotifyPlayer: React.FC = () => {
             <ListMusic size={14} />
             <span>Playlists</span>
           </button>
+          <button onClick={loadDevices} className="spotify-btn-ghost" title="Aparelhos de Som">
+            <Speaker size={14} />
+          </button>
           <button onClick={handleLogout} className="spotify-btn-ghost" title="Desconectar Spotify">
             <LogOut size={14} />
           </button>
         </div>
 
-        {/* Modal de Biblioteca quando ocioso */}
+        {/* Alerta / Mensagem Flutuante */}
+        {alertMessage && (
+          <div className="spotify-alert-toast">
+            <AlertCircle size={14} />
+            <span>{alertMessage}</span>
+          </div>
+        )}
+
+        {/* Modais quando ocioso */}
+        {isDevicesOpen && renderDevicesModal()}
         {isLibraryOpen && renderLibraryModal()}
       </div>
     );
@@ -321,7 +436,7 @@ export const SpotifyPlayer: React.FC = () => {
     );
   }
 
-  // 4. Modal / Popover de Aparelhos (Spotify Connect)
+  // 4. Modal de Aparelhos (Spotify Connect + Som Local)
   function renderDevicesModal() {
     return (
       <div className="spotify-modal-overlay" onClick={() => setIsDevicesOpen(false)}>
@@ -329,16 +444,37 @@ export const SpotifyPlayer: React.FC = () => {
           <div className="spotify-modal-header">
             <div className="spotify-modal-title">
               <Speaker size={18} className="text-green-400" />
-              <span>Ouvir em um aparelho</span>
+              <span>Onde a música deve tocar?</span>
             </div>
             <button onClick={() => setIsDevicesOpen(false)} className="spotify-close-btn">
               <X size={16} />
             </button>
           </div>
 
+          {/* Botão de Destaque: Tocar no Dispositivo Atual (Tablet/Computador) */}
+          <div className="spotify-local-player-box">
+            <button
+              onClick={handlePlayOnThisDevice}
+              className="spotify-local-dev-btn"
+              title="Transformar este dispositivo em caixa de som do Spotify"
+            >
+              <Speaker size={18} className="text-amber-400" />
+              <div className="spotify-local-dev-info">
+                <strong>Tocar Neste Dispositivo (DOMUS)</strong>
+                <span>Tocar diretamente no alto-falante deste tablet/computador</span>
+              </div>
+            </button>
+          </div>
+
           <div className="spotify-devices-list">
+            <div className="spotify-section-label">Aparelhos na Rede (Spotify Connect):</div>
             {devices.length === 0 ? (
-              <p className="spotify-empty-text">Buscando aparelhos na rede...</p>
+              <div className="spotify-empty-dev-box">
+                <p className="spotify-empty-text">Nenhum aparelho ativo detectado.</p>
+                <span className="spotify-dev-hint">
+                  Abra o Spotify no seu celular, TV ou Echo Dot para ele aparecer aqui.
+                </span>
+              </div>
             ) : (
               devices.map((dev) => (
                 <button
@@ -350,7 +486,7 @@ export const SpotifyPlayer: React.FC = () => {
                   <div className="spotify-dev-info">
                     <span className="spotify-dev-name">{dev.name}</span>
                     <span className="spotify-dev-type">
-                      {dev.isActive ? 'Tocando agora' : dev.type}
+                      {dev.isActive ? '🟢 Tocando agora' : dev.type}
                     </span>
                   </div>
                   {dev.isActive && <div className="spotify-dev-pulse" />}
@@ -379,7 +515,7 @@ export const SpotifyPlayer: React.FC = () => {
     );
   }
 
-  // 5. Modal / Gaveta de Biblioteca (Playlists, Recentes, Busca)
+  // 5. Modal de Biblioteca (Playlists, Recentes, Busca)
   function renderLibraryModal() {
     return (
       <div className="spotify-modal-overlay" onClick={() => setIsLibraryOpen(false)}>
@@ -409,9 +545,30 @@ export const SpotifyPlayer: React.FC = () => {
                 <span>Buscar</span>
               </button>
             </div>
-            <button onClick={() => setIsLibraryOpen(false)} className="spotify-close-btn">
-              <X size={16} />
-            </button>
+
+            <div className="spotify-lib-header-actions">
+              {libraryTab === 'playlists' && (
+                <button
+                  onClick={refreshPlaylists}
+                  className={`spotify-btn-icon-sm ${isLoadingPlaylists ? 'animate-spin' : ''}`}
+                  title="Atualizar Playlists"
+                >
+                  <RotateCw size={14} />
+                </button>
+              )}
+              {libraryTab === 'recent' && (
+                <button
+                  onClick={refreshRecent}
+                  className={`spotify-btn-icon-sm ${isLoadingRecent ? 'animate-spin' : ''}`}
+                  title="Atualizar Recentes"
+                >
+                  <RotateCw size={14} />
+                </button>
+              )}
+              <button onClick={() => setIsLibraryOpen(false)} className="spotify-close-btn">
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           {/* Conteúdo da Aba */}
@@ -419,8 +576,19 @@ export const SpotifyPlayer: React.FC = () => {
             {/* Aba 1: Playlists */}
             {libraryTab === 'playlists' && (
               <div className="spotify-playlists-grid">
-                {playlists.length === 0 ? (
-                  <p className="spotify-empty-text">Carregando suas playlists...</p>
+                {isLoadingPlaylists ? (
+                  <div className="spotify-loading-state">
+                    <RotateCw size={24} className="animate-spin text-amber-500" />
+                    <p className="spotify-empty-text">Buscando playlists da sua conta...</p>
+                  </div>
+                ) : playlists.length === 0 ? (
+                  <div className="spotify-empty-state">
+                    <Music size={32} className="text-gray-500" />
+                    <p className="spotify-empty-text">Nenhuma playlist encontrada na sua biblioteca.</p>
+                    <button onClick={refreshPlaylists} className="spotify-retry-btn">
+                      Tentar Novamente
+                    </button>
+                  </div>
                 ) : (
                   playlists.map((pl) => (
                     <div
@@ -452,8 +620,19 @@ export const SpotifyPlayer: React.FC = () => {
             {/* Aba 2: Músicas Recentes */}
             {libraryTab === 'recent' && (
               <div className="spotify-tracks-list">
-                {recentTracks.length === 0 ? (
-                  <p className="spotify-empty-text">Buscando músicas recentes...</p>
+                {isLoadingRecent ? (
+                  <div className="spotify-loading-state">
+                    <RotateCw size={24} className="animate-spin text-amber-500" />
+                    <p className="spotify-empty-text">Buscando faixas tocadas recentemente...</p>
+                  </div>
+                ) : recentTracks.length === 0 ? (
+                  <div className="spotify-empty-state">
+                    <Clock size={32} className="text-gray-500" />
+                    <p className="spotify-empty-text">Nenhuma música recente encontrada.</p>
+                    <button onClick={refreshRecent} className="spotify-retry-btn">
+                      Tentar Novamente
+                    </button>
+                  </div>
                 ) : (
                   recentTracks.map((trk) => (
                     <div
@@ -498,7 +677,10 @@ export const SpotifyPlayer: React.FC = () => {
 
                 <div className="spotify-search-results">
                   {isSearching ? (
-                    <p className="spotify-empty-text">Pesquisando no Spotify...</p>
+                    <div className="spotify-loading-state">
+                      <RotateCw size={20} className="animate-spin text-amber-500" />
+                      <p className="spotify-empty-text">Pesquisando no catálogo do Spotify...</p>
+                    </div>
                   ) : searchResults.length > 0 ? (
                     searchResults.map((trk) => (
                       <div
@@ -518,9 +700,9 @@ export const SpotifyPlayer: React.FC = () => {
                       </div>
                     ))
                   ) : searchQuery.trim() ? (
-                    <p className="spotify-empty-text">Nenhuma música encontrada.</p>
+                    <p className="spotify-empty-text">Nenhuma música encontrada para "{searchQuery}".</p>
                   ) : (
-                    <p className="spotify-empty-text">Digite o nome de uma música ou artista acima.</p>
+                    <p className="spotify-empty-text">Digite o nome de uma música, artista ou banda acima.</p>
                   )}
                 </div>
               </div>
@@ -537,6 +719,14 @@ export const SpotifyPlayer: React.FC = () => {
   return (
     <>
       <div className="spotify-card-container">
+        {/* Alerta Flutuante */}
+        {alertMessage && (
+          <div className="spotify-alert-toast">
+            <AlertCircle size={14} />
+            <span>{alertMessage}</span>
+          </div>
+        )}
+
         {/* Topo do Card: Seletor de Aparelho & Biblioteca */}
         <div className="spotify-card-top">
           <button

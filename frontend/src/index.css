@@ -1994,6 +1994,141 @@ html, body, #root {
   padding: 30px 10px;
 }
 
+/* Toast de Alerta do Spotify */
+.spotify-alert-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(239, 68, 68, 0.95);
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 10px;
+  margin-top: 8px;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Botão de Tocar no Dispositivo Atual (Web Playback SDK) */
+.spotify-local-player-box {
+  margin-bottom: 8px;
+}
+
+.spotify-local-dev-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 14px;
+  cursor: pointer;
+  color: #FFFFFF;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.spotify-local-dev-btn:hover {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: #F59E0B;
+  transform: translateY(-1px);
+}
+
+.spotify-local-dev-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.spotify-local-dev-info strong {
+  font-size: 13px;
+  color: #FBBF24;
+}
+
+.spotify-local-dev-info span {
+  font-size: 11px;
+  color: #CBD5E1;
+}
+
+.spotify-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94A3B8;
+  margin: 6px 0 2px 0;
+}
+
+.spotify-empty-dev-box {
+  text-align: center;
+  padding: 16px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+}
+
+.spotify-dev-hint {
+  display: block;
+  font-size: 11px;
+  color: #64748B;
+  margin-top: 4px;
+}
+
+.spotify-lib-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spotify-btn-icon-sm {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: #94A3B8;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.spotify-btn-icon-sm:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+}
+
+.spotify-loading-state, .spotify-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 10px;
+  text-align: center;
+}
+
+.spotify-retry-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.spotify-retry-btn:hover {
+  background: #1DB954;
+  border-color: #1DB954;
+  color: #000000;
+}
+
+
 /* --- BOTÃO DE AVALIAÇÃO NA TOPBAR --- */
 .topbar-review-btn {
   display: flex;

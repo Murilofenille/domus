@@ -9,6 +9,8 @@ declare global {
   }
 }
 
+import { sha256 as jsSha256 } from 'js-sha256';
+
 const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '922729d9e3254a6294cecf9861003481';
 const TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';
 const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
@@ -83,21 +85,35 @@ export interface PlayResult {
   error?: 'NO_ACTIVE_DEVICE' | 'PREMIUM_REQUIRED' | 'AUTH_ERROR' | 'UNKNOWN';
   message?: string;
 }
-
 function getRedirectUri(): string {
   return window.location.origin + '/';
 }
 
 function generateRandomString(length: number): string {
   const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-  const values = crypto.getRandomValues(new Uint8Array(length));
-  return values.reduce((acc, x) => acc + possible[x % possible.length], '');
+  try {
+    if (typeof window !== 'undefined' && window.crypto && typeof window.crypto.getRandomValues === 'function') {
+      const values = crypto.getRandomValues(new Uint8Array(length));
+      return values.reduce((acc, x) => acc + possible[x % possible.length], '');
+    }
+  } catch {}
+  let text = '';
+  for (let i = 0; i < length; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
 }
 
-async function sha256(plain: string): Promise<ArrayBuffer> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(plain);
-  return window.crypto.subtle.digest('SHA-256', data);
+async function computeSha256Buffer(plain: string): Promise<ArrayBuffer> {
+  try {
+    if (window.crypto && window.crypto.subtle && typeof window.crypto.subtle.digest === 'function') {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(plain);
+      return await window.crypto.subtle.digest('SHA-256', data);
+    }
+  } catch {}
+  // Fallback garantido para conexões HTTP / IPs locais onde crypto.subtle é bloqueado
+  return jsSha256.arrayBuffer(plain);
 }
 
 function base64encode(input: ArrayBuffer): string {
@@ -109,31 +125,34 @@ function base64encode(input: ArrayBuffer): string {
 
 /**
  * Inicia o fluxo de autorização PKCE com o Spotify
- * Em PWA ou mobile, faz o redirecionamento direto na mesma janela para garantir retorno limpo
+ * Compatível com HTTPS, HTTP local, tablets e navegadores embarcados
  */
 export async function loginWithSpotify(): Promise<void> {
-  const codeVerifier = generateRandomString(64);
-  const hashed = await sha256(codeVerifier);
-  const codeChallenge = base64encode(hashed);
+  try {
+    const codeVerifier = generateRandomString(64);
+    const hashed = await computeSha256Buffer(codeVerifier);
+    const codeChallenge = base64encode(hashed);
 
-  window.localStorage.setItem('spotify_code_verifier', codeVerifier);
+    window.localStorage.setItem('spotify_code_verifier', codeVerifier);
 
-  const redirectUri = getRedirectUri();
+    const redirectUri = getRedirectUri();
 
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: SPOTIFY_CLIENT_ID,
-    scope: SCOPES,
-    code_challenge_method: 'S256',
-    code_challenge: codeChallenge,
-    redirect_uri: redirectUri,
-    state: codeVerifier,
-  });
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: SPOTIFY_CLIENT_ID,
+      scope: SCOPES,
+      code_challenge_method: 'S256',
+      code_challenge: codeChallenge,
+      redirect_uri: redirectUri,
+      state: codeVerifier,
+    });
 
-  const authUrl = `${AUTH_ENDPOINT}?${params.toString()}`;
-
-  // Sempre navega diretamente na janela do app para garantir que o PWA receba o redirect
-  window.location.href = authUrl;
+    const authUrl = `${AUTH_ENDPOINT}?${params.toString()}`;
+    window.location.href = authUrl;
+  } catch (err: any) {
+    console.error('Erro ao iniciar login com Spotify:', err);
+    alert('Erro ao conectar com Spotify: ' + (err?.message || err));
+  }
 }
 
 /**

@@ -273,11 +273,14 @@ export function App() {
       setLightStates(prev => ({ ...prev, [pinToUpdate.id]: newValue }));
     }
 
-    if (pinToUpdate?.deviceKey) {
+    const targetDev = devicesList.find(d => d.id === deviceId || d.key === deviceId);
+    const targetKey = targetDev?.key || pinToUpdate?.deviceKey;
+
+    if (targetKey) {
       setAllDevicesData(prev => ({
         ...prev,
-        [pinToUpdate.deviceKey]: {
-          ...prev[pinToUpdate.deviceKey],
+        [targetKey]: {
+          ...prev[targetKey],
           [code]: newValue
         }
       }));
@@ -292,11 +295,11 @@ export function App() {
       if (pinToUpdate) {
         setLightStates(prev => ({ ...prev, [pinToUpdate.id]: currentValue }));
       }
-      if (pinToUpdate?.deviceKey) {
+      if (targetKey) {
         setAllDevicesData(prev => ({
           ...prev,
-          [pinToUpdate.deviceKey]: {
-            ...prev[pinToUpdate.deviceKey],
+          [targetKey]: {
+            ...prev[targetKey],
             [code]: currentValue
           }
         }));
@@ -434,6 +437,68 @@ export function App() {
     return 32;
   }, [allDevicesData]);
 
+  // 3 Interruptores em destaque para o Dashboard da Área de Lazer (conforme mockup do usuário)
+  const quickSwitches = useMemo(() => {
+    const candidates = [
+      { devKey: 'quarto_murilo', code: 'switch_1', defaultName: 'Luz Central Quarto' },
+      { devKey: 'sala', code: 'switch_4', fallbackCode: 'switch_1', defaultName: 'Luz Central Sala' },
+      { devKey: 'cozinha', code: 'switch_1', defaultName: 'Ilha Gourmet' },
+    ];
+
+    const switchesList: Array<{
+      id: string;
+      name: string;
+      isOn: boolean;
+      onToggle: () => void;
+    }> = [];
+
+    candidates.forEach((c) => {
+      const dev = devicesList.find(d => d.key === c.devKey);
+      const devId = dev?.id || c.devKey;
+      const devSwitches = allDevicesData[c.devKey] || dev?.switches || {};
+      
+      let targetCode = c.code;
+      if (devSwitches[targetCode] === undefined && c.fallbackCode && devSwitches[c.fallbackCode] !== undefined) {
+        targetCode = c.fallbackCode;
+      }
+      
+      const isOn = Boolean(devSwitches[targetCode]);
+      const customName = channelNames[c.devKey]?.[targetCode] || dev?.custom_channel_names?.[targetCode] || c.defaultName;
+
+      switchesList.push({
+        id: `${c.devKey}_${targetCode}`,
+        name: customName,
+        isOn,
+        onToggle: () => handleToggleDeviceSwitch(devId, targetCode, isOn)
+      });
+    });
+
+    // Se faltou algum candidato, preenche com canais de iluminação reais existentes
+    if (switchesList.length < 3) {
+      devicesList.forEach(dev => {
+        if (switchesList.length >= 3) return;
+        const devSwitches = allDevicesData[dev.key] || dev.switches || {};
+        Object.entries(devSwitches).forEach(([code, val]) => {
+          if (switchesList.length >= 3) return;
+          if (isLightSwitchChannel(code)) {
+            const id = `${dev.key}_${code}`;
+            if (!switchesList.some(s => s.id === id)) {
+              const name = channelNames[dev.key]?.[code] || dev.custom_channel_names?.[code] || `${dev.name} (${code})`;
+              switchesList.push({
+                id,
+                name,
+                isOn: Boolean(val),
+                onToggle: () => handleToggleDeviceSwitch(dev.id, code, Boolean(val))
+              });
+            }
+          }
+        });
+      });
+    }
+
+    return switchesList;
+  }, [devicesList, allDevicesData, channelNames, handleToggleDeviceSwitch]);
+
   return (
     <div className="app-viewport">
       {activeTab === 'dashboard' ? (
@@ -444,6 +509,7 @@ export function App() {
           activeLightsCount={activeLightsCount}
           totalLightsCount={totalLightsCount}
           poolTemperature={poolTemperature}
+          quickSwitches={quickSwitches}
         />
       ) : (
         <>

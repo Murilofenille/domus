@@ -12,10 +12,8 @@ import {
   Cloud,
   CloudLightning,
   Sparkles,
-  ArrowRight,
   Speaker,
-  Power,
-  Flame
+  Lightbulb
 } from 'lucide-react';
 import {
   isSpotifyConnected,
@@ -32,6 +30,13 @@ import {
 } from '../services/spotify';
 import { fetchWeatherData, type WeatherData } from '../services/weather';
 
+export interface QuickDeviceSwitch {
+  id: string;
+  name: string;
+  isOn: boolean;
+  onToggle: () => void;
+}
+
 interface LeisureDashboardProps {
   onOpenFloorplan: () => void;
   onOpenReview: () => void;
@@ -40,6 +45,7 @@ interface LeisureDashboardProps {
   totalLightsCount?: number;
   poolTemperature?: number | null;
   onToggleShortcut?: (shortcutKey: string) => void;
+  quickSwitches?: QuickDeviceSwitch[];
 }
 
 export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
@@ -47,7 +53,8 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
   onOpenReview,
   onToggleAllLights,
   activeLightsCount = 0,
-  poolTemperature = 32
+  poolTemperature = 32,
+  quickSwitches = []
 }) => {
   // --- Spotify State ---
   const [spotifyConnected, setSpotifyConnected] = useState<boolean>(() => isSpotifyConnected());
@@ -114,6 +121,27 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
       }
     }, 3000);
     return () => clearInterval(interval);
+  }, [syncSpotify]);
+
+  // Escutar login do Spotify em tempo real de outras abas ou janelas
+  useEffect(() => {
+    const handleAuthMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'SPOTIFY_AUTH_SUCCESS') {
+        syncSpotify();
+      }
+    };
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('spotify_auth_channel');
+      bc.onmessage = handleAuthMessage;
+    } catch {}
+    window.addEventListener('message', handleAuthMessage);
+    window.addEventListener('storage', syncSpotify);
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener('message', handleAuthMessage);
+      window.removeEventListener('storage', syncSpotify);
+    };
   }, [syncSpotify]);
 
   // Avanço suave do contador do Spotify
@@ -183,20 +211,27 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  // Ícone dinâmico para o clima
+  // Ícone dinâmico para o clima (tamanho aumentado para dar mais destaque ao widget)
   const renderWeatherIcon = () => {
-    const iconType = weather?.iconType || 'rainy';
+    const iconType = weather?.iconType || 'sunny';
     if (iconType === 'sunny') {
-      return <Sun size={68} className="weather-vector-icon sunny" />;
+      return <Sun size={84} className="weather-vector-icon sunny" />;
     }
     if (iconType === 'storm') {
-      return <CloudLightning size={68} className="weather-vector-icon storm" />;
+      return <CloudLightning size={84} className="weather-vector-icon storm" />;
     }
     if (iconType === 'cloudy') {
-      return <Cloud size={68} className="weather-vector-icon cloudy" />;
+      return <Cloud size={84} className="weather-vector-icon cloudy" />;
     }
-    return <CloudRain size={68} className="weather-vector-icon rainy" />;
+    return <CloudRain size={84} className="weather-vector-icon rainy" />;
   };
+
+  const fallbackSwitches: QuickDeviceSwitch[] = [
+    { id: '1', name: 'Luz Central Quarto', isOn: false, onToggle: () => {} },
+    { id: '2', name: 'Luz Central Sala', isOn: false, onToggle: () => {} },
+    { id: '3', name: 'Luz Gourmet', isOn: false, onToggle: () => {} },
+  ];
+  const displaySwitches = quickSwitches.length > 0 ? quickSwitches.slice(0, 3) : fallbackSwitches;
 
   return (
     <div className="leisure-dashboard-container">
@@ -337,7 +372,7 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
         {/* COLUNA DIREITA: Widgets de Clima e Atalhos/Dispositivos */}
         <div className="leisure-right-col">
           
-          {/* 1. Widget de Clima */}
+          {/* 1. Widget de Clima (Altura aumentada, mais imponente e informativo) */}
           <div className="leisure-weather-card">
             <div className="weather-card-left">
               <span className="weather-condition-tag">
@@ -354,6 +389,7 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
               <div className="weather-location-box">
                 <h4 className="weather-location-title">{weather?.city || 'Área de Lazer'}</h4>
                 <span className="weather-weekday">{weather?.weekday || 'Hoje'}</span>
+                <span className="weather-humidity">Umidade: {weather?.humidity ?? 65}%</span>
               </div>
               <div className="weather-temp-box">
                 <span className="weather-temp-c">{weather?.temperatureC ?? 25}°</span>
@@ -362,63 +398,55 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
             </div>
           </div>
 
-          {/* 2. Card de Atalhos & Dispositivos */}
+          {/* 2. Card de Dispositivos (Redesenhado conforme mockup do usuário) */}
           <div className="leisure-shortcuts-card">
-            {/* Lado Esquerdo: Atalhos Rápidos */}
-            <div className="shortcuts-side">
-              <h3 className="shortcuts-title">Atalhos</h3>
-              <div className="shortcuts-buttons-list">
-                <button
-                  onClick={onToggleAllLights}
-                  className="shortcut-pill-btn"
-                  title={activeLightsCount > 0 ? "Apagar todas as luzes" : "Ligar todas as luzes"}
-                >
-                  <Power size={16} />
-                  <span>{activeLightsCount > 0 ? "Apagar Tudo" : "Ligar Tudo"}</span>
-                </button>
+            {/* Lado Esquerdo: Botão 'Ligar tudo' no topo + 3 Interruptores com Toggle Switch */}
+            <div className="leisure-quick-switches-col">
+              <button
+                type="button"
+                onClick={onToggleAllLights}
+                className="quick-toggle-all-btn"
+                title={activeLightsCount > 0 ? "Apagar todas as luzes" : "Ligar todas as luzes"}
+              >
+                <span>{activeLightsCount > 0 ? "Apagar tudo" : "Ligar tudo"}</span>
+              </button>
 
-                <button
-                  onClick={onOpenFloorplan}
-                  className="shortcut-pill-btn"
-                  title="Iluminação da Área Gourmet"
-                >
-                  <Flame size={16} />
-                  <span>Gourmet</span>
-                </button>
-
-                <button
-                  onClick={onOpenFloorplan}
-                  className="shortcut-pill-btn"
-                  title="Iluminação da Piscina"
-                >
-                  <Waves size={16} />
-                  <span>Piscina</span>
-                </button>
+              <div className="quick-switches-list">
+                {displaySwitches.map((sw) => (
+                  <div key={sw.id} className="quick-switch-card">
+                    <div className={`quick-switch-icon-box ${sw.isOn ? 'active' : ''}`}>
+                      <Lightbulb size={20} className={sw.isOn ? 'icon-on' : 'icon-off'} />
+                    </div>
+                    <div className="quick-switch-info">
+                      <span className="quick-switch-title" title={sw.name}>{sw.name}</span>
+                      <span className={`quick-switch-status ${sw.isOn ? 'status-on' : 'status-off'}`}>
+                        {sw.isOn ? 'Ligado' : 'Desligado'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={sw.isOn}
+                      onClick={sw.onToggle}
+                      className={`ios-toggle-switch ${sw.isOn ? 'checked' : ''}`}
+                      title={`${sw.name}: ${sw.isOn ? 'Desligar' : 'Ligar'}`}
+                    >
+                      <span className="ios-toggle-thumb" />
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Separador Vertical */}
-            <div className="shortcuts-divider" />
-
-            {/* Lado Direito: Acessar Dispositivos / Planta Baixa */}
-            <div className="devices-access-side">
-              <h3 className="devices-title">Dispositivos</h3>
-              <button
-                onClick={onOpenFloorplan}
-                className="devices-cta-btn"
-                title="Acessar Planta Baixa 2D e Maquete 3D"
-              >
-                <div className="devices-cta-content">
-                  <span className="devices-cta-action">Acessar</span>
-                  <span className="devices-cta-sub">
-                    Direciona para o mapa e interruptores da casa
-                  </span>
-                </div>
-                <div className="devices-cta-arrow">
-                  <ArrowRight size={20} />
-                </div>
-              </button>
-            </div>
+            {/* Lado Direito: Grande Card 'Acessar' (Redireciona para o Mapa/Planta Baixa) */}
+            <button
+              type="button"
+              onClick={onOpenFloorplan}
+              className="quick-access-big-card"
+              title="Acessar Planta Baixa 2D e Maquete 3D"
+            >
+              <span className="quick-access-title">Acessar</span>
+            </button>
           </div>
 
         </div>

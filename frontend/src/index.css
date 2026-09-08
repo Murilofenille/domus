@@ -3479,32 +3479,34 @@ html, body, #root {
 .leisure-right-col {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  flex: 1;
+  gap: 20px;
+  flex: 1.1;
 }
 
-/* 1. Card de Clima */
+/* 1. Card de Clima (Altura aumentada, mais imponente e informativo) */
 .leisure-weather-card {
   background: linear-gradient(135deg, #059669 0%, #2563EB 52%, #4F46E5 100%);
   border-radius: 36px;
-  padding: 28px 36px;
+  padding: 34px 40px;
   color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: space-between;
   box-shadow: 0 16px 36px -10px rgba(37, 99, 235, 0.35);
   box-sizing: border-box;
+  flex: 1.35;
+  min-height: 230px;
 }
 
 .weather-card-left {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .weather-condition-tag {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 800;
   color: rgba(255, 255, 255, 0.95);
   letter-spacing: -0.01em;
 }
@@ -3517,7 +3519,7 @@ html, body, #root {
 }
 
 .weather-vector-icon {
-  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.25));
 }
 
 .weather-vector-icon.sunny {
@@ -3537,8 +3539,8 @@ html, body, #root {
 }
 
 .weather-divider {
-  width: 1px;
-  height: 90px;
+  width: 1.5px;
+  height: 100px;
   background: rgba(255, 255, 255, 0.25);
   margin: 0 20px;
 }
@@ -3555,17 +3557,24 @@ html, body, #root {
 }
 
 .weather-location-title {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 800;
   margin: 0;
   letter-spacing: -0.01em;
 }
 
 .weather-weekday {
-  font-size: 15px;
-  color: rgba(255, 255, 255, 0.8);
-  font-weight: 500;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
   margin-top: 2px;
+}
+
+.weather-humidity {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+  margin-top: 4px;
 }
 
 .weather-temp-box {
@@ -3575,8 +3584,8 @@ html, body, #root {
 }
 
 .weather-temp-c {
-  font-size: 52px;
-  font-weight: 800;
+  font-size: 68px;
+  font-weight: 900;
   line-height: 1;
   letter-spacing: -0.03em;
 }
@@ -3588,142 +3597,184 @@ html, body, #root {
   margin-top: 4px;
 }
 
-/* 2. Card de Atalhos & Dispositivos */
+/* 2. Card de Atalhos & Dispositivos (Redesenhado conforme mockup do usuário) */
 .leisure-shortcuts-card {
-  background: #F1F5F9;
+  background: #EEF3F8;
   border: 1px solid #E2E8F0;
   border-radius: 36px;
-  padding: 32px 36px;
+  padding: 16px 18px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  gap: 16px;
+  align-items: stretch;
   flex: 1;
   box-sizing: border-box;
 }
 
-.shortcuts-side {
+/* Subcoluna Esquerda: Botão 'Ligar tudo' + 3 Switches */
+.leisure-quick-switches-col {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-
-.shortcuts-title {
-  font-size: 26px;
-  font-weight: 900;
-  color: #0F172A;
-  margin: 0;
-  letter-spacing: -0.02em;
-}
-
-.shortcuts-buttons-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.shortcut-pill-btn {
-  display: inline-flex;
-  align-items: center;
   gap: 8px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.quick-toggle-all-btn {
   background: #FFFFFF;
-  border: 1px solid #CBD5E1;
-  color: #334155;
-  font-size: 14px;
+  border: none;
+  border-radius: 20px;
+  padding: 12px 16px;
+  font-size: 18px;
   font-weight: 700;
-  padding: 10px 18px;
-  border-radius: 16px;
+  color: #0F172A;
+  text-align: center;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
 }
 
-.shortcut-pill-btn:hover {
-  background: #0F172A;
-  color: #FFFFFF;
-  border-color: #0F172A;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.15);
+.quick-toggle-all-btn:hover {
+  background: #F8FAFC;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
 }
 
-.shortcuts-divider {
-  width: 1.5px;
-  height: 80%;
-  background: #CBD5E1;
-  margin: 0 32px;
+.quick-toggle-all-btn:active {
+  transform: scale(0.98);
 }
 
-.devices-access-side {
-  flex: 1.2;
+.quick-switches-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
-.devices-title {
-  font-size: 26px;
-  font-weight: 900;
-  color: #0F172A;
-  margin: 0;
-  letter-spacing: -0.02em;
-}
-
-.devices-cta-btn {
+.quick-switch-card {
+  background: #FFFFFF;
+  border-radius: 18px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  background: #FFFFFF;
-  border: 1.5px solid #CBD5E1;
-  border-radius: 20px;
-  padding: 18px 22px;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  text-align: left;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  gap: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.devices-cta-btn:hover {
-  background: #FFFFFF;
-  border-color: #2563EB;
-  transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.12);
+.quick-switch-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
 }
 
-.devices-cta-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.devices-cta-action {
-  font-size: 22px;
-  font-weight: 800;
-  color: #0F172A;
-  letter-spacing: -0.02em;
-}
-
-.devices-cta-sub {
-  font-size: 13px;
-  color: #64748B;
-  font-weight: 500;
-}
-
-.devices-cta-arrow {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #F1F5F9;
-  color: #0F172A;
+.quick-switch-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #EEF3F8;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+  color: #94A3B8;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
-.devices-cta-btn:hover .devices-cta-arrow {
+.quick-switch-icon-box.active {
+  background: #FEF3C7;
+  color: #D97706;
+}
+
+.quick-switch-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.quick-switch-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1E293B;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quick-switch-status {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94A3B8;
+}
+
+.quick-switch-status.status-on {
+  color: #10B981;
+}
+
+/* Toggle Switch Estilo iOS */
+.ios-toggle-switch {
+  width: 48px;
+  height: 28px;
+  border-radius: 14px;
+  background: #DDE5ED;
+  position: relative;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.25s ease;
+  padding: 2px;
+  flex-shrink: 0;
+  outline: none;
+}
+
+.ios-toggle-switch.checked {
   background: #2563EB;
-  color: #FFFFFF;
-  transform: translateX(4px);
+}
+
+.ios-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ios-toggle-switch.checked .ios-toggle-thumb {
+  transform: translateX(20px);
+}
+
+/* Subcoluna Direita: Grande Card 'Acessar' */
+.quick-access-big-card {
+  flex: 1.1;
+  background: #FFFFFF;
+  border: none;
+  border-radius: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+  text-align: center;
+}
+
+.quick-access-big-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+.quick-access-big-card:active {
+  transform: scale(0.98);
+}
+
+.quick-access-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #000000;
+  letter-spacing: -0.02em;
 }
 
 /* Linha Inferior (Piscina + Avaliar + Hora) */

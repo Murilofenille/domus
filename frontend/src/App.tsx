@@ -13,6 +13,7 @@ import { DEFAULT_DEVICES_LIST, DEFAULT_DEVICE_ROOMS, DEFAULT_CHANNEL_NAMES } fro
 import type { Room } from './types';
 import { fetchDeviceStatus, sendTuyaCommand, fetchDeviceConfig } from './services/api';
 import { handleSpotifyCallback } from './services/spotify';
+import { isLightSwitchChannel } from './tuyaChannels';
 
 interface CameraControllerProps {
   viewMode: '3D' | '2D';
@@ -348,9 +349,9 @@ export function App() {
       const devCustomNames = channelNames[dev.key] || dev.custom_channel_names || {};
       const devHidden = hiddenChannels[dev.key] || dev.hidden_channels || [];
 
-      // Obter todos os canais conhecidos deste aparelho
-      const detectedSwitchKeys = Object.keys(devSwitches).filter(k => k.startsWith('switch_'));
-      const customKeys = Object.keys(devCustomNames);
+      // Obter todos os canais conhecidos deste aparelho que sejam canais reais de iluminação
+      const detectedSwitchKeys = Object.keys(devSwitches).filter(isLightSwitchChannel);
+      const customKeys = Object.keys(devCustomNames).filter(isLightSwitchChannel);
       const allCodes = Array.from(new Set([...detectedSwitchKeys, ...customKeys]));
       const switchCodes = allCodes.length > 0 ? allCodes.sort() : ['switch_1'];
 
@@ -389,17 +390,20 @@ export function App() {
     return result;
   }, [selectedRoom, devicesList, allDevicesData, channelNames, hiddenChannels, channelRooms, deviceRooms]);
 
-  // Mapa de atividade de cada cômodo: true se QUALQUER luz/canal daquele cômodo estiver ligado
+  // Mapa de atividade de cada cômodo: true se QUALQUER luz/canal REAL daquele cômodo estiver ligado
+  // Ignora DPs de configuração (inching, backlight, switch_type) e canais ocultados pelo usuário
   const roomActiveStates: Record<string, boolean> = useMemo(() => {
     const map: Record<string, boolean> = {};
 
-    // 1. Verificar através de allDevicesData e mapeamento de cômodos (canais reais Tuya)
+    // 1. Verificar através de allDevicesData e mapeamento de cômodos (canais reais de iluminação Tuya)
     devicesList.forEach(dev => {
       const devSwitches = allDevicesData[dev.key] || dev.switches || {};
       const devRoom = deviceRooms[dev.key] || dev.room_id;
+      const devHidden = hiddenChannels[dev.key] || dev.hidden_channels || [];
 
       Object.entries(devSwitches).forEach(([code, val]) => {
-        if (code.startsWith('switch_') && Boolean(val)) {
+        // Apenas canais de iluminação reais (não inching/backlight/type) e que não estejam ocultos
+        if (isLightSwitchChannel(code) && !devHidden.includes(code) && Boolean(val)) {
           const specificRoom = channelRooms[dev.key]?.[code] || devRoom;
           if (specificRoom) {
             map[specificRoom] = true;

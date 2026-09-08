@@ -1,6 +1,7 @@
 import React from 'react';
 import { Lightbulb, X, Radio } from 'lucide-react';
 import type { Room } from '../types';
+import { isLightSwitchChannel } from '../tuyaChannels';
 
 export interface RoomDeviceItem {
   key: string;
@@ -90,7 +91,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
           roomDevices.map(dev => {
             const devSwitches = dev.switches || {};
             const devSwitchCodes = Object.keys(devSwitches)
-              .filter(k => k.startsWith('switch_'))
+              .filter(isLightSwitchChannel)
               .filter(k => !(dev.hiddenChannels || []).includes(k));
 
             if (devSwitchCodes.length === 0) return null;

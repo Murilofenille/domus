@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Search, Save, Check, Cpu, Lightbulb, MapPin, Tag, Eye, EyeOff } from 'lucide-react';
 import { rooms } from '../houseLayout';
 import { saveDeviceConfig } from '../services/api';
+import { isLightSwitchChannel } from '../tuyaChannels';
 
 export interface DeviceInfoItem {
   key: string;
@@ -189,9 +190,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             const currentRoomId = localRooms[device.key] || '';
             const devChannels = localChannels[device.key] || {};
 
-            // Obter códigos de canais detectados pelo cache ou sugerir padrão
-            const detectedSwitchKeys = Object.keys(device.switches || {}).filter(k => k.startsWith('switch_'));
-            const customKeys = Object.keys(devChannels);
+            // Obter códigos de canais detectados pelo cache ou sugerir padrão (apenas canais reais de iluminação)
+            const detectedSwitchKeys = Object.keys(device.switches || {}).filter(isLightSwitchChannel);
+            const customKeys = Object.keys(devChannels).filter(isLightSwitchChannel);
             const allSwitchKeys = Array.from(new Set([...detectedSwitchKeys, ...customKeys]));
             const switchList = allSwitchKeys.length > 0 ? allSwitchKeys.sort() : ['switch_1'];
 

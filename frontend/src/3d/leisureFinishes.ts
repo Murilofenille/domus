@@ -24,8 +24,8 @@ function texture(kind: 'tile' | 'brick' | 'paving'): THREE.CanvasTexture {
       ctx.fillStyle = kind === 'tile'
         ? `hsl(${204 + v * 8} 73% ${25 + v * 20}%)`
         : kind === 'brick'
-        ? `hsl(${30 + v * 5} ${30 + v * 12}% ${44 + v * 19}%)`
-        : `hsl(34 23% ${67 + v * 7}%)`;
+          ? `hsl(${30 + v * 5} ${30 + v * 12}% ${44 + v * 19}%)`
+          : `hsl(34 23% ${67 + v * 7}%)`;
       ctx.fillRect(px + 1.5, y * h + 1.5, w - 3, h - 3);
       for (let n = 0; n < 80; n++) {
         ctx.fillStyle = rand() > 0.5 ? '#ffffff0d' : '#0000000a';
@@ -272,7 +272,7 @@ export function finishScene(
   const wall54 = byId.get(54);
   if (wall54) {
     wall54.scale.y = 2.8 / 5.8;
-    wall54.scale.x = 0.50; // Reduz o comprimento para não colidir com o tijolo
+    wall54.scale.x = 1; // Reduz o comprimento para não colidir com o tijolo
     wall54.material = blackWallMat;
     wall54.position.z -= 0.12; // Desloca para dentro do pátio
     wall54.position.x += 0.70; // Desloca para frente (começa exatamente onde o tijolo termina)
@@ -514,7 +514,7 @@ export function finishScene(
   }
 
   return {
-    update(_t: number) {},
+    update(_t: number) { },
     setNight(on: boolean) {
       // Controla a intensidade da luz ambiente/reflexiva do céu noturno
       scene.environmentIntensity = on ? 0.04 : 1.0;

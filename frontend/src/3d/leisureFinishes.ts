@@ -316,15 +316,78 @@ export function finishScene(
 
   // Iluminação dedicada do Salão / Gourmet (Sonoff Iluminação Salão Inferior)
   const gourmetMesh = byId.get(10) || byId.get(9);
-  let gourmetLight: THREE.PointLight | null = null;
-  let gourmetPos: [number, number, number] = [-5.5, 2.5, 0];
+  const gourmetLights: { light: THREE.Light; onIntensity: number }[] = [];
+  let gourmetPos: [number, number, number] = [-5.85, 2.4, -0.5];
+
+  const glowingGourmetLamps = new THREE.MeshStandardMaterial({
+    color: '#221a12',
+    emissive: '#ffeed6',
+    emissiveIntensity: 0.0,
+    roughness: 0.2
+  });
+
   if (gourmetMesh) {
     const gb = new THREE.Box3().setFromObject(gourmetMesh);
-    gourmetPos = [(gb.min.x + gb.max.x) / 2, 2.8, (gb.min.z + gb.max.z) / 2];
-    gourmetLight = new THREE.PointLight('#ffe4a3', 0, 14, 1.7);
-    gourmetLight.position.set(gourmetPos[0], gourmetPos[1], gourmetPos[2]);
-    scene.add(gourmetLight);
+    const islandX = (gb.min.x + gb.max.x) / 2;
+    const islandZ = (gb.min.z + gb.max.z) / 2;
+    gourmetPos = [islandX, 2.4, 0.0];
+
+    // 1. Pendentes Modernos sobre a Ilha Gourmet
+    const pendenteXs = [islandX - 0.75, islandX + 0.75];
+    for (const px of pendenteXs) {
+      box('Cabo pendente gourmet', px, 2.38, islandZ, 0.012, 0.78, 0.012, metal);
+      box('Cúpula pendente gourmet', px, 1.95, islandZ, 0.16, 0.20, 0.16, metal);
+      box('Lente pendente gourmet', px, 1.84, islandZ, 0.13, 0.02, 0.13, glowingGourmetLamps);
+
+      const spot = new THREE.SpotLight('#fff3dc', 0, 4.8, Math.PI / 3.5, 0.35, 1.8);
+      spot.position.set(px, 1.85, islandZ);
+      spot.target.position.set(px, 1.15, islandZ);
+      scene.add(spot);
+      scene.add(spot.target);
+      gourmetLights.push({ light: spot, onIntensity: 14 });
+    }
+
+    // Luz difusa quente centrada na ilha e banquetas
+    const islandPoint = new THREE.PointLight('#ffe6bf', 0, 7.5, 2.0);
+    islandPoint.position.set(islandX, 2.30, islandZ);
+    scene.add(islandPoint);
+    gourmetLights.push({ light: islandPoint, onIntensity: 12 });
   }
+
+  // 2. Spots Embutidos no Teto do Salão com Difusores Emissivos
+  const ceilingSpots = [
+    { x: -6.40, z: -4.00, label: 'Bancada pia / churrasqueira' },
+    { x: -8.60, z: -4.00, label: 'Refrigeradores / despensa' },
+    { x: -6.30, z: 1.80, label: 'Centro social salão' },
+    { x: -5.60, z: 3.60, label: 'Lounge piscina' },
+    { x: -9.20, z: 1.20, label: 'Fundo salão de estar' }
+  ];
+
+  for (const s of ceilingSpots) {
+    box('Aro spot embutido', s.x, 2.76, s.z, 0.14, 0.02, 0.14, metal);
+    box('Lente spot embutido', s.x, 2.75, s.z, 0.10, 0.015, 0.10, glowingGourmetLamps);
+  }
+
+  // 3. Luzes Pontuais Distribuídas para Cobertura Total e Equilibrada do Salão
+  const kitchenLight = new THREE.PointLight('#ffe2b4', 0, 7.0, 1.9);
+  kitchenLight.position.set(-6.50, 2.35, -4.00);
+  scene.add(kitchenLight);
+  gourmetLights.push({ light: kitchenLight, onIntensity: 14 });
+
+  const loungeLight = new THREE.PointLight('#fff1d8', 0, 8.5, 1.7);
+  loungeLight.position.set(-6.20, 2.35, 1.90);
+  scene.add(loungeLight);
+  gourmetLights.push({ light: loungeLight, onIntensity: 18 });
+
+  const poolSideLounge = new THREE.PointLight('#fff3de', 0, 7.0, 1.9);
+  poolSideLounge.position.set(-5.50, 2.35, 3.60);
+  scene.add(poolSideLounge);
+  gourmetLights.push({ light: poolSideLounge, onIntensity: 12 });
+
+  const backHallLight = new THREE.PointLight('#ffe5be', 0, 7.5, 1.9);
+  backHallLight.position.set(-9.20, 2.35, 0.50);
+  scene.add(backHallLight);
+  gourmetLights.push({ light: backHallLight, onIntensity: 12 });
 
   // Refletor de Jardim / Espeto iluminando o Coqueiro (acende sincronizado com as arandelas)
   const coqueiroMesh = byId.get(12);
@@ -409,7 +472,11 @@ export function finishScene(
       if (stairLight) stairLight.intensity = on ? 18 : 0;
     },
     setGourmetLight(on: boolean) {
-      if (gourmetLight) gourmetLight.intensity = on ? 24 : 0;
+      gourmetLights.forEach(({ light, onIntensity }) => {
+        light.intensity = on ? onIntensity : 0;
+      });
+      glowingGourmetLamps.color.set(on ? '#fff6e4' : '#221a12');
+      glowingGourmetLamps.emissiveIntensity = on ? 4.0 : 0.0;
     },
     setPoolLight(on: boolean) {
       if (poolLight) poolLight.intensity = on ? 26 : 0;

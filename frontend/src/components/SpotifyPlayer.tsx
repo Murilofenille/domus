@@ -552,6 +552,9 @@ export const SpotifyPlayer: React.FC = () => {
 
   // 4. Modal de Aparelhos (Spotify Connect + Som Local)
   function renderDevicesModal() {
+    const isThisDeviceActive = devices.some(d => (d.isLocal || d.name.toLowerCase().includes('domus')) && d.isActive) || (localDeviceId && track?.deviceId === localDeviceId);
+    const networkDevices = devices.filter(d => !d.isLocal && !d.name.toLowerCase().includes('domus'));
+
     return (
       <div className="spotify-modal-overlay" onClick={() => setIsDevicesOpen(false)}>
         <div className="spotify-devices-card" onClick={(e) => e.stopPropagation()}>
@@ -565,32 +568,37 @@ export const SpotifyPlayer: React.FC = () => {
             </button>
           </div>
 
-          {/* Botão de Destaque: Tocar no Dispositivo Atual (Tablet/Computador) */}
+          {/* Botão de Destaque: Dispositivo Local (Tablet / Navegador) */}
           <div className="spotify-local-player-box">
             <button
               onClick={handlePlayOnThisDevice}
-              className="spotify-local-dev-btn"
-              title="Transformar este dispositivo em caixa de som do Spotify"
+              className={`spotify-local-dev-btn ${isThisDeviceActive ? 'active' : ''}`}
+              title="Alto-falante deste tablet/computador"
             >
-              <Speaker size={18} className="text-amber-400" />
+              <Speaker size={18} className={isThisDeviceActive ? "text-green-400" : "text-amber-400"} />
               <div className="spotify-local-dev-info">
-                <strong>Tocar Neste Dispositivo (DOMUS)</strong>
-                <span>Tocar diretamente no alto-falante deste tablet/computador</span>
+                <strong>DOMUS (Este Dispositivo)</strong>
+                <span>
+                  {isThisDeviceActive
+                    ? '🟢 Tocando agora neste alto-falante'
+                    : 'Toque para tocar no alto-falante deste tablet/computador'}
+                </span>
               </div>
+              {isThisDeviceActive && <div className="spotify-dev-pulse" />}
             </button>
           </div>
 
           <div className="spotify-devices-list">
-            <div className="spotify-section-label">Aparelhos na Rede (Spotify Connect):</div>
-            {devices.length === 0 ? (
+            <div className="spotify-section-label">Outros Aparelhos na Rede (Spotify Connect):</div>
+            {networkDevices.length === 0 ? (
               <div className="spotify-empty-dev-box">
-                <p className="spotify-empty-text">Nenhum aparelho ativo detectado.</p>
+                <p className="spotify-empty-text">Nenhum outro aparelho ativo detectado.</p>
                 <span className="spotify-dev-hint">
                   Abra o Spotify no celular, Smart TV ou Echo Dot para ele aparecer aqui.
                 </span>
               </div>
             ) : (
-              devices.map((dev) => (
+              networkDevices.map((dev) => (
                 <button
                   key={dev.id}
                   onClick={() => handleTransferDevice(dev.id)}

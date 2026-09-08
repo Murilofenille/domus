@@ -381,12 +381,44 @@ export async function fetchAvailableDevices(): Promise<SpotifyDevice[]> {
 
   try {
     const data = await res.json();
-    return (data.devices || []).map((d: any) => ({
+    const rawDevices: any[] = data.devices || [];
+
+    // Deduplicação estrita de dispositivos Connect
+    // Especialmente instâncias duplicadas/fantasmas de "DOMUS (Este Dispositivo)" geradas em reconexões
+    const deduped: any[] = [];
+
+    for (const d of rawDevices) {
+      const isDomus = d.name?.toLowerCase().includes('domus');
+      if (isDomus) {
+        // Se este for o player local ativo desta aba ou estiver tocando, prioriza
+        if (d.id === localWebPlayerDeviceId || d.is_active) {
+          const prevIdx = deduped.findIndex(item => item.name?.toLowerCase().includes('domus'));
+          if (prevIdx >= 0) {
+            deduped[prevIdx] = d;
+          } else {
+            deduped.push(d);
+          }
+        } else {
+          // Se ainda não temos nenhum DOMUS na lista, adiciona o primeiro
+          const hasDomus = deduped.some(item => item.name?.toLowerCase().includes('domus'));
+          if (!hasDomus) {
+            deduped.push(d);
+          }
+        }
+      } else {
+        // Dispositivos externos comuns (Echo, TV, Celular): evitar ID duplicado
+        if (!deduped.some(item => item.id === d.id)) {
+          deduped.push(d);
+        }
+      }
+    }
+
+    return deduped.map((d: any) => ({
       id: d.id,
       name: d.name,
       type: d.type,
       isActive: !!d.is_active,
-      isLocal: d.id === localWebPlayerDeviceId,
+      isLocal: d.id === localWebPlayerDeviceId || d.name?.toLowerCase().includes('domus'),
       volumePercent: d.volume_percent ?? 50,
     }));
   } catch (err) {

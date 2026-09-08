@@ -2310,6 +2310,17 @@ html, body, #root {
   transform: translateY(-1px);
 }
 
+.spotify-local-dev-btn.active {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.6);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+}
+
+.spotify-local-dev-btn.active:hover {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: #10B981;
+}
+
 .spotify-local-dev-info {
   display: flex;
   flex-direction: column;

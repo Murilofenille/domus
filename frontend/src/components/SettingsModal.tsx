@@ -321,7 +321,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {filteredDevices.length === 0 && (
             <div className="settings-empty-state">
               <Search size={32} />
-              <p>Nenhum dispositivo encontrado com o filtro "{searchTerm}"</p>
+              <p>
+                {searchTerm
+                  ? `Nenhum dispositivo encontrado com a busca "${searchTerm}"`
+                  : 'Nenhum dispositivo cadastrado no momento.'}
+              </p>
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  style={{
+                    marginTop: '8px',
+                    padding: '6px 14px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '12px',
+                    color: '#CBD5E1',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Limpar busca
+                </button>
+              )}
             </div>
           )}
         </div>

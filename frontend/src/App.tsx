@@ -8,6 +8,7 @@ import { SettingsModal, type DeviceInfoItem } from './components/SettingsModal';
 import { SpotifyPlayer } from './components/SpotifyPlayer';
 import { ReviewModal } from './components/ReviewModal';
 import { automationPins } from './houseLayout';
+import { DEFAULT_DEVICES_LIST, DEFAULT_DEVICE_ROOMS, DEFAULT_CHANNEL_NAMES } from './defaultDevices';
 import type { Room } from './types';
 import { fetchDeviceStatus, sendTuyaCommand, fetchDeviceConfig } from './services/api';
 import { handleSpotifyCallback } from './services/spotify';
@@ -27,14 +28,66 @@ export function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
-  // Estados do Gerenciador de Dispositivos e Canais
+  // Estados do Gerenciador de Dispositivos e Canais (com inicialização imediata e fallback resiliente)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
-  const [devicesList, setDevicesList] = useState<DeviceInfoItem[]>([]);
-  const [deviceRooms, setDeviceRooms] = useState<Record<string, string>>({});
-  const [channelNames, setChannelNames] = useState<Record<string, Record<string, string>>>({});
-  const [hiddenChannels, setHiddenChannels] = useState<Record<string, string[]>>({});
-  const [channelRooms, setChannelRooms] = useState<Record<string, Record<string, string>>>({});
+
+  const [devicesList, setDevicesList] = useState<DeviceInfoItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('domus_device_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.devices && Array.isArray(parsed.devices) && parsed.devices.length > 0) {
+          return parsed.devices;
+        }
+      }
+    } catch {}
+    return DEFAULT_DEVICES_LIST;
+  });
+
+  const [deviceRooms, setDeviceRooms] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem('domus_device_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.device_rooms) return { ...DEFAULT_DEVICE_ROOMS, ...parsed.device_rooms };
+      }
+    } catch {}
+    return DEFAULT_DEVICE_ROOMS;
+  });
+
+  const [channelNames, setChannelNames] = useState<Record<string, Record<string, string>>>(() => {
+    try {
+      const saved = localStorage.getItem('domus_device_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.channel_names) return { ...DEFAULT_CHANNEL_NAMES, ...parsed.channel_names };
+      }
+    } catch {}
+    return DEFAULT_CHANNEL_NAMES;
+  });
+
+  const [hiddenChannels, setHiddenChannels] = useState<Record<string, string[]>>(() => {
+    try {
+      const saved = localStorage.getItem('domus_device_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.hidden_channels) return parsed.hidden_channels;
+      }
+    } catch {}
+    return { led_closet: ['switch_inching', 'switch_type'] };
+  });
+
+  const [channelRooms, setChannelRooms] = useState<Record<string, Record<string, string>>>(() => {
+    try {
+      const saved = localStorage.getItem('domus_device_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.channel_rooms) return parsed.channel_rooms;
+      }
+    } catch {}
+    return {};
+  });
 
   // Carregar configurações salvas no backend com fallback/redundância em localStorage
   const loadConfig = useCallback(async () => {
@@ -46,8 +99,8 @@ export function App() {
 
     const res = await fetchDeviceConfig();
     if (res) {
-      const rooms = { ...(res.device_rooms || {}), ...(localBackup?.device_rooms || {}) };
-      const channels = { ...(res.channel_names || {}), ...(localBackup?.channel_names || {}) };
+      const rooms = { ...DEFAULT_DEVICE_ROOMS, ...(res.device_rooms || {}), ...(localBackup?.device_rooms || {}) };
+      const channels = { ...DEFAULT_CHANNEL_NAMES, ...(res.channel_names || {}), ...(localBackup?.channel_names || {}) };
       const hidden = { ...(res.hidden_channels || {}), ...(localBackup?.hidden_channels || {}) };
       const chanRooms = { ...(res.channel_rooms || {}), ...(localBackup?.channel_rooms || {}) };
 
@@ -55,12 +108,16 @@ export function App() {
       setChannelNames(channels);
       setHiddenChannels(hidden);
       setChannelRooms(chanRooms);
-      if (res.devices) setDevicesList(res.devices);
+
+      if (res.devices && res.devices.length > 0) {
+        setDevicesList(res.devices);
+      }
     } else if (localBackup) {
-      if (localBackup.device_rooms) setDeviceRooms(localBackup.device_rooms);
-      if (localBackup.channel_names) setChannelNames(localBackup.channel_names);
+      if (localBackup.device_rooms) setDeviceRooms(prev => ({ ...DEFAULT_DEVICE_ROOMS, ...prev, ...localBackup.device_rooms }));
+      if (localBackup.channel_names) setChannelNames(prev => ({ ...DEFAULT_CHANNEL_NAMES, ...prev, ...localBackup.channel_names }));
       if (localBackup.hidden_channels) setHiddenChannels(localBackup.hidden_channels);
       if (localBackup.channel_rooms) setChannelRooms(localBackup.channel_rooms);
+      if (localBackup.devices && localBackup.devices.length > 0) setDevicesList(localBackup.devices);
     }
   }, []);
 
@@ -122,6 +179,22 @@ export function App() {
 
         setAllDevicesData(nextDevicesData);
         setLightStates(prev => ({ ...prev, ...nextLightStates }));
+
+        // Atualizar também o estado online e switches da lista de dispositivos
+        setDevicesList(prev => {
+          const base = prev.length > 0 ? prev : DEFAULT_DEVICES_LIST;
+          return base.map(item => {
+            const live = data.devices![item.key] || data.devices![item.id];
+            if (live) {
+              return {
+                ...item,
+                online: live.online !== false,
+                switches: { ...item.switches, ...(live.switches || {}) }
+              };
+            }
+            return item;
+          });
+        });
       }
     } else {
       setIsOnline(false);
@@ -369,23 +442,25 @@ export function App() {
           setHiddenChannels(updatedHidden);
           setChannelRooms(updatedChannelRooms);
 
+          const updatedDevices = devicesList.map(d => ({
+            ...d,
+            room_id: updatedRooms[d.key] || '',
+            custom_channel_names: updatedChannels[d.key] || {},
+            hidden_channels: updatedHidden[d.key] || [],
+            channel_rooms: updatedChannelRooms[d.key] || {}
+          }));
+          setDevicesList(updatedDevices);
+
           // Salvar também em localStorage para redundância
           try {
             localStorage.setItem('domus_device_config', JSON.stringify({
+              devices: updatedDevices,
               device_rooms: updatedRooms,
               channel_names: updatedChannels,
               hidden_channels: updatedHidden,
               channel_rooms: updatedChannelRooms
             }));
           } catch {}
-
-          setDevicesList(prev => prev.map(d => ({
-            ...d,
-            room_id: updatedRooms[d.key] || '',
-            custom_channel_names: updatedChannels[d.key] || {},
-            hidden_channels: updatedHidden[d.key] || [],
-            channel_rooms: updatedChannelRooms[d.key] || {}
-          })));
         }}
         onToggleSwitch={handleToggleDeviceSwitch}
       />

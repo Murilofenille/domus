@@ -602,7 +602,8 @@ export async function fetchRecentlyPlayed(): Promise<SpotifySearchItem[]> {
 }
 
 /**
- * Pesquisa faixas no Spotify com suporte a catálogo regional (market=from_token)
+ * Pesquisa faixas no Spotify respeitando a nova regra estrita da API (Fevereiro/Março 2026):
+ * O parâmetro 'limit' em GET /search agora aceita no MÁXIMO 10 (valores maiores geram 400 Bad Request).
  */
 export async function searchSpotify(query: string): Promise<SpotifySearchItem[]> {
   const trimmed = query.trim();
@@ -610,27 +611,36 @@ export async function searchSpotify(query: string): Promise<SpotifySearchItem[]>
 
   const encoded = encodeURIComponent(trimmed);
 
-  // 1. Tenta pesquisar com market=from_token (traz as faixas liberadas para a conta/país do usuário)
+  // 1. Tenta pesquisar com limit=10 (novo limite máximo permitido pelo Spotify em 2026)
   let res = await spotifyFetch(
-    `https://api.spotify.com/v1/search?q=${encoded}&type=track&market=from_token&limit=30`
+    `https://api.spotify.com/v1/search?q=${encoded}&type=track&limit=10`
   );
 
-  // 2. Se retornar erro ou status >= 400 (ex: market não aceito para essa chamada), tenta busca aberta
+  // 2. Se falhar, tenta com limit=5
   if (!res || !res.ok) {
+    console.warn(`Busca com limit=10 retornou status ${res?.status}. Tentando limit=5...`);
     res = await spotifyFetch(
-      `https://api.spotify.com/v1/search?q=${encoded}&type=track&limit=30`
+      `https://api.spotify.com/v1/search?q=${encoded}&type=track&limit=5`
+    );
+  }
+
+  // 3. Se ainda falhar, tenta com market=from_token e limit=5
+  if (!res || !res.ok) {
+    console.warn(`Tentando com market=from_token & limit=5...`);
+    res = await spotifyFetch(
+      `https://api.spotify.com/v1/search?q=${encoded}&type=track&market=from_token&limit=5`
     );
   }
 
   if (!res || !res.ok) {
-    console.warn('Falha na busca Spotify. Status:', res?.status);
+    console.error('Falha em todas as tentativas de busca Spotify. Status final:', res?.status);
     return [];
   }
 
   try {
     const data = await res.json();
     const rawTracks = data.tracks?.items || [];
-    return rawTracks
+    const firstPage: SpotifySearchItem[] = rawTracks
       .filter((track: any) => track && (track.name || track.id))
       .map((track: any) => ({
         id: track.id || track.uri || String(Math.random()),
@@ -640,6 +650,33 @@ export async function searchSpotify(query: string): Promise<SpotifySearchItem[]>
         uri: track.uri || '',
         durationMs: track.duration_ms || 0,
       }));
+
+    // Se vieram 10 resultados, busca a segunda página (offset=10) para fornecer até 20 resultados sem violar o limit
+    if (firstPage.length === 10) {
+      try {
+        const page2Res = await spotifyFetch(
+          `https://api.spotify.com/v1/search?q=${encoded}&type=track&limit=10&offset=10`
+        );
+        if (page2Res && page2Res.ok) {
+          const page2Data = await page2Res.json();
+          const page2Tracks: SpotifySearchItem[] = (page2Data.tracks?.items || [])
+            .filter((track: any) => track && (track.name || track.id))
+            .map((track: any) => ({
+              id: track.id || track.uri || String(Math.random()),
+              name: track.name || 'Faixa sem título',
+              artists: (track.artists || []).map((a: any) => a.name).filter(Boolean).join(', ') || 'Artista Desconhecido',
+              albumArt: track.album?.images?.[0]?.url || track.album?.images?.[1]?.url || '',
+              uri: track.uri || '',
+              durationMs: track.duration_ms || 0,
+            }));
+          return [...firstPage, ...page2Tracks];
+        }
+      } catch (err) {
+        console.warn('Erro silencioso ao carregar página 2 da busca:', err);
+      }
+    }
+
+    return firstPage;
   } catch (err) {
     console.error('Erro ao processar busca:', err);
     return [];

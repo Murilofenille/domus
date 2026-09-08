@@ -285,19 +285,18 @@ export function finishScene(
     scene.add(poolLight);
   }
 
-  // Arandelas ao longo dos muros do pátio
+  // Arandelas ao longo dos muros do pátio: 1 luz focal curta em cada spot (8 luzes leves, sem sobreposição)
   for (const x of [1.5, 4.6, 7.7, 10.8]) {
     for (const z of [-4.83, 4.83]) {
       box('Arandela preta', x, 1.85, z, 0.17, 0.4, 0.13, metal);
       box('Difusor da arandela', x, 1.85, z + (z < 0 ? 0.075 : -0.075), 0.11, 0.3, 0.022, glowingArandelas);
+
+      // Raio curto e realista (2.4m): ilumina a parede e a beirada do piso sem cruzar com as outras arandelas
+      const lamp = new THREE.PointLight('#ff9d3b', 0, 2.4, 2.0);
+      lamp.position.set(x, 1.80, z + (z < 0 ? 0.18 : -0.18));
+      arandelaLights.push(lamp);
     }
   }
-  // 2 luzes equilibradas de longo alcance para os muros esquerdo e direito (substitui 8 point lights pesadas)
-  const lampLeft = new THREE.PointLight('#ff9d3b', 0, 14.0, 1.8);
-  lampLeft.position.set(6.15, 1.85, -4.55);
-  const lampRight = new THREE.PointLight('#ff9d3b', 0, 14.0, 1.8);
-  lampRight.position.set(6.15, 1.85, 4.55);
-  arandelaLights.push(lampLeft, lampRight);
 
   // Iluminação dedicada da Escada (Sonoff Luz Escada)
   const stairMesh = byId.get(54);
@@ -329,29 +328,16 @@ export function finishScene(
     const islandZ = (gb.min.z + gb.max.z) / 2;
     gourmetPos = [islandX, 2.4, 0.0];
 
-    // 1. Pendentes Modernos sobre a Ilha Gourmet
+    // Mantém as luminárias pendentes modernas como elemento estético
     const pendenteXs = [islandX - 0.75, islandX + 0.75];
     for (const px of pendenteXs) {
       box('Cabo pendente gourmet', px, 2.38, islandZ, 0.012, 0.78, 0.012, metal);
       box('Cúpula pendente gourmet', px, 1.95, islandZ, 0.16, 0.20, 0.16, metal);
       box('Lente pendente gourmet', px, 1.84, islandZ, 0.13, 0.02, 0.13, glowingGourmetLamps);
-
-      const spot = new THREE.SpotLight('#fff3dc', 0, 4.8, Math.PI / 3.5, 0.35, 1.8);
-      spot.position.set(px, 1.85, islandZ);
-      spot.target.position.set(px, 1.15, islandZ);
-      scene.add(spot);
-      scene.add(spot.target);
-      gourmetLights.push({ light: spot, onIntensity: 14 });
     }
-
-    // Luz difusa quente centrada na ilha e banquetas
-    const islandPoint = new THREE.PointLight('#ffe6bf', 0, 7.5, 2.0);
-    islandPoint.position.set(islandX, 2.30, islandZ);
-    scene.add(islandPoint);
-    gourmetLights.push({ light: islandPoint, onIntensity: 12 });
   }
 
-  // 2. Spots Embutidos no Teto do Salão com Difusores Emissivos
+  // 2. Spots decorativos embutidos no teto do salão (mantém as lentes emissivas)
   const ceilingSpots = [
     { x: -6.40, z: -4.00, label: 'Bancada pia / churrasqueira' },
     { x: -8.60, z: -4.00, label: 'Refrigeradores / despensa' },
@@ -365,26 +351,14 @@ export function finishScene(
     box('Lente spot embutido', s.x, 2.75, s.z, 0.10, 0.015, 0.10, glowingGourmetLamps);
   }
 
-  // 3. Luzes Pontuais Distribuídas para Cobertura Total e Equilibrada do Salão
-  const kitchenLight = new THREE.PointLight('#ffe2b4', 0, 7.0, 1.9);
-  kitchenLight.position.set(-6.50, 2.35, -4.00);
-  scene.add(kitchenLight);
-  gourmetLights.push({ light: kitchenLight, onIntensity: 14 });
+  // 3. Apenas 2 luzes difusas amplas para o salão (substitui os 7 spots pesados por iluminação geral leve)
+  const mainSalãoLight = new THREE.PointLight('#ffe8c6', 0, 11.0, 1.7);
+  mainSalãoLight.position.set(-6.50, 2.40, 0.50);
+  gourmetLights.push({ light: mainSalãoLight, onIntensity: 22 });
 
-  const loungeLight = new THREE.PointLight('#fff1d8', 0, 8.5, 1.7);
-  loungeLight.position.set(-6.20, 2.35, 1.90);
-  scene.add(loungeLight);
-  gourmetLights.push({ light: loungeLight, onIntensity: 18 });
-
-  const poolSideLounge = new THREE.PointLight('#fff3de', 0, 7.0, 1.9);
-  poolSideLounge.position.set(-5.50, 2.35, 3.60);
-  scene.add(poolSideLounge);
-  gourmetLights.push({ light: poolSideLounge, onIntensity: 12 });
-
-  const backHallLight = new THREE.PointLight('#ffe5be', 0, 7.5, 1.9);
-  backHallLight.position.set(-9.20, 2.35, 0.50);
-  scene.add(backHallLight);
-  gourmetLights.push({ light: backHallLight, onIntensity: 12 });
+  const kitchenSalãoLight = new THREE.PointLight('#ffe0b6', 0, 9.0, 1.7);
+  kitchenSalãoLight.position.set(-8.80, 2.40, -2.50);
+  gourmetLights.push({ light: kitchenSalãoLight, onIntensity: 18 });
 
   // Refletor de Jardim / Espeto iluminando o Coqueiro (acende sincronizado com as arandelas)
   const coqueiroMesh = byId.get(12);

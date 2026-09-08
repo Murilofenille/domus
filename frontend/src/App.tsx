@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { LeisureModel3D } from './components/LeisureModel3D';
 import { Floorplan2D } from './components/Floorplan2D';
 import { TopBar } from './components/TopBar';
@@ -25,6 +25,9 @@ export function App() {
 
   // Mapa de status por deviceKey: { [deviceKey]: Record<string, boolean | number> }
   const [allDevicesData, setAllDevicesData] = useState<Record<string, Record<string, boolean | number>>>({});
+
+  // Trava otimista para evitar o efeito "ping-pong" (ligar -> desligar brevemente por polling desatualizado da nuvem -> ligar de novo)
+  const optimisticLocksRef = useRef<Map<string, { value: boolean; expiresAt: number }>>(new Map());
 
   const [isOnline, setIsOnline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -175,18 +178,44 @@ export function App() {
       if (data.devices) {
         const nextDevicesData: Record<string, Record<string, boolean | number>> = {};
         const nextLightStates: Record<string, boolean> = {};
+        const now = Date.now();
 
-        // Atualizar cada dispositivo Tuya / eWeLink no cache
+        // Limpar travas expiradas
+        for (const [k, lock] of optimisticLocksRef.current.entries()) {
+          if (now >= lock.expiresAt) {
+            optimisticLocksRef.current.delete(k);
+          }
+        }
+
+        // Atualizar cada dispositivo Tuya / eWeLink no cache respeitando travas otimistas
         Object.entries(data.devices).forEach(([devKey, dev]) => {
-          nextDevicesData[devKey] = dev.switches || {};
+          const switches = { ...(dev.switches || {}) };
+          optimisticLocksRef.current.forEach((lock, lockKey) => {
+            if (now < lock.expiresAt) {
+              const [lockedDev, lockedCode] = lockKey.split(':');
+              if (lockedDev === devKey || lockedDev === dev.device_id) {
+                switches[lockedCode] = lock.value;
+              }
+            }
+          });
+          nextDevicesData[devKey] = switches;
         });
 
-        // Atualizar cada pin interativo mapeado
+        // Atualizar cada pin interativo mapeado respeitando travas otimistas
         automationPins.forEach((pin) => {
-          if (pin.deviceKey && data.devices![pin.deviceKey]) {
+          const pinLock = optimisticLocksRef.current.get(`pin:${pin.id}`);
+          if (pinLock && now < pinLock.expiresAt) {
+            nextLightStates[pin.id] = pinLock.value;
+          } else if (pin.deviceKey && data.devices![pin.deviceKey]) {
             const dev = data.devices![pin.deviceKey];
             const dp = pin.dpCode || 'switch_1';
-            nextLightStates[pin.id] = !!dev.switches?.[dp];
+            const devLock = optimisticLocksRef.current.get(`${pin.deviceId}:${dp}`) ||
+                            optimisticLocksRef.current.get(`${pin.deviceKey}:${dp}`);
+            if (devLock && now < devLock.expiresAt) {
+              nextLightStates[pin.id] = devLock.value;
+            } else {
+              nextLightStates[pin.id] = !!dev.switches?.[dp];
+            }
           }
         });
 
@@ -199,10 +228,19 @@ export function App() {
           return base.map(item => {
             const live = data.devices![item.key] || data.devices![item.id];
             if (live) {
+              const mergedSwitches = { ...item.switches, ...(live.switches || {}) };
+              optimisticLocksRef.current.forEach((lock, lockKey) => {
+                if (now < lock.expiresAt) {
+                  const [lockedDev, lockedCode] = lockKey.split(':');
+                  if (lockedDev === item.key || lockedDev === item.id) {
+                    mergedSwitches[lockedCode] = lock.value;
+                  }
+                }
+              });
               return {
                 ...item,
                 online: live.online !== false,
-                switches: { ...item.switches, ...(live.switches || {}) }
+                switches: mergedSwitches
               };
             }
             return item;
@@ -228,15 +266,23 @@ export function App() {
   // Alternar qualquer switch de qualquer dispositivo da casa
   const handleToggleDeviceSwitch = async (deviceId: string, code: string, currentValue: boolean) => {
     const newValue = !currentValue;
+    const now = Date.now();
+    const lockDuration = 6000; // 6s de trava otimista contra cache desatualizado da nuvem
 
     // Atualização otimista imediata na cena 3D e nos cards
     const pinToUpdate = automationPins.find(p => p.deviceId === deviceId && (p.dpCode === code || !p.dpCode));
     if (pinToUpdate) {
       setLightStates(prev => ({ ...prev, [pinToUpdate.id]: newValue }));
+      optimisticLocksRef.current.set(`pin:${pinToUpdate.id}`, { value: newValue, expiresAt: now + lockDuration });
     }
 
     const targetDev = devicesList.find(d => d.id === deviceId || d.key === deviceId);
     const targetKey = targetDev?.key || pinToUpdate?.deviceKey;
+
+    optimisticLocksRef.current.set(`${deviceId}:${code}`, { value: newValue, expiresAt: now + lockDuration });
+    if (targetKey && targetKey !== deviceId) {
+      optimisticLocksRef.current.set(`${targetKey}:${code}`, { value: newValue, expiresAt: now + lockDuration });
+    }
 
     if (targetKey) {
       setAllDevicesData(prev => ({
@@ -254,7 +300,10 @@ export function App() {
 
     if (!success) {
       // Reverter se der erro
+      optimisticLocksRef.current.delete(`${deviceId}:${code}`);
+      if (targetKey) optimisticLocksRef.current.delete(`${targetKey}:${code}`);
       if (pinToUpdate) {
+        optimisticLocksRef.current.delete(`pin:${pinToUpdate.id}`);
         setLightStates(prev => ({ ...prev, [pinToUpdate.id]: currentValue }));
       }
       if (targetKey) {
@@ -274,15 +323,23 @@ export function App() {
   const handleToggleAll = () => {
     const activeCount = Object.values(lightStates).filter(Boolean).length;
     const shouldTurnOn = activeCount === 0;
+    const now = Date.now();
+    const lockDuration = 6000;
 
     const nextState: Record<string, boolean> = {};
     automationPins.forEach(p => { nextState[p.id] = shouldTurnOn; });
     setLightStates(nextState);
 
-    // Enviar comando para os dispositivos reais principais
+    // Enviar comando para os dispositivos reais principais e travar otimisticamente
     automationPins.forEach(p => {
       if (p.deviceId) {
-        sendTuyaCommand(p.dpCode || 'switch_1', shouldTurnOn, p.deviceId);
+        const dp = p.dpCode || 'switch_1';
+        optimisticLocksRef.current.set(`${p.deviceId}:${dp}`, { value: shouldTurnOn, expiresAt: now + lockDuration });
+        if (p.deviceKey) {
+          optimisticLocksRef.current.set(`${p.deviceKey}:${dp}`, { value: shouldTurnOn, expiresAt: now + lockDuration });
+        }
+        optimisticLocksRef.current.set(`pin:${p.id}`, { value: shouldTurnOn, expiresAt: now + lockDuration });
+        sendTuyaCommand(dp, shouldTurnOn, p.deviceId);
       }
     });
   };

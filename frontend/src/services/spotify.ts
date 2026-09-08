@@ -422,6 +422,17 @@ export async function setSpotifyVolume(volumePercent: number): Promise<boolean> 
 }
 
 /**
+ * Pula para um segundo específico da música (Seek / Barra de Progresso)
+ */
+export async function seekSpotifyTrack(positionMs: number): Promise<boolean> {
+  const res = await spotifyFetch(
+    `https://api.spotify.com/v1/me/player/seek?position_ms=${Math.round(positionMs)}`,
+    { method: 'PUT' }
+  );
+  return !!res && (res.status === 204 || res.ok);
+}
+
+/**
  * Busca as playlists do usuário
  */
 export async function fetchUserPlaylists(): Promise<SpotifyPlaylist[]> {

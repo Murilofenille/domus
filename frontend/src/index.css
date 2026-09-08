@@ -1360,30 +1360,85 @@ html, body, #root {
 .spotify-progress-container {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
+  margin: 4px 0 2px 0;
 }
 
 .spotify-progress-bar {
+  position: relative;
   width: 100%;
   height: 4px;
   background: rgba(255, 255, 255, 0.15);
-  border-radius: 2px;
-  overflow: hidden;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: height 0.15s ease;
+}
+
+.spotify-progress-bar.interactive {
+  cursor: pointer;
+}
+
+.spotify-progress-bar.interactive:hover,
+.spotify-progress-bar.interactive.is-dragging {
+  height: 6px;
 }
 
 .spotify-progress-fill {
   height: 100%;
   background: #1DB954;
-  border-radius: 2px;
-  transition: width 0.3s ease;
+  border-radius: 4px;
+  pointer-events: none;
+  transition: background-color 0.15s ease;
+}
+
+.spotify-progress-bar.interactive:hover .spotify-progress-fill,
+.spotify-progress-bar.interactive.is-dragging .spotify-progress-fill {
+  background: #1ed760;
+}
+
+.spotify-progress-thumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  z-index: 2;
+}
+
+.spotify-progress-bar.interactive:hover .spotify-progress-thumb,
+.spotify-progress-bar.interactive.is-dragging .spotify-progress-thumb {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.15);
+}
+
+.spotify-progress-slider-overlay {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 22px; /* área generosa de toque */
+  opacity: 0;
+  cursor: pointer;
+  z-index: 10;
+  margin: 0;
+  padding: 0;
 }
 
 .spotify-time-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 9px;
+  font-size: 10px;
   color: #64748B;
   font-variant-numeric: tabular-nums;
+  user-select: none;
 }
 
 /* Controles */

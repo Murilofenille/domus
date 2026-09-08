@@ -30,6 +30,7 @@ import {
   toggleSpotifyPlay,
   nextSpotifyTrack,
   previousSpotifyTrack,
+  seekSpotifyTrack,
   fetchAvailableDevices,
   transferSpotifyPlayback,
   setSpotifyVolume,
@@ -51,6 +52,7 @@ import {
 export const SpotifyPlayer: React.FC = () => {
   const [connected, setConnected] = useState<boolean>(() => isSpotifyConnected());
   const [track, setTrack] = useState<SpotifyTrack | null>(null);
+  const [seekPositionMs, setSeekPositionMs] = useState<number | null>(null);
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
   const [isBusy, setIsBusy] = useState<boolean>(false);
 
@@ -188,6 +190,7 @@ export const SpotifyPlayer: React.FC = () => {
     return () => clearInterval(interval);
   }, [connected, track?.isPlaying, syncPlayback]);
 
+
   // Carregar lista de aparelhos quando abrir o modal de aparelhos
   const loadDevices = async () => {
     const list = await fetchAvailableDevices();
@@ -255,6 +258,31 @@ export const SpotifyPlayer: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchQuery, libraryTab]);
 
+  // Avanço em tempo real do segundo da música enquanto estiver tocando
+  useEffect(() => {
+    if (!track?.isPlaying || seekPositionMs !== null) return;
+    const timer = setInterval(() => {
+      setTrack((prev) => {
+        if (!prev || !prev.isPlaying || prev.progressMs >= prev.durationMs) return prev;
+        return { ...prev, progressMs: Math.min(prev.progressMs + 1000, prev.durationMs) };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [track?.isPlaying, seekPositionMs]);
+
+  const handleSeekChange = (newMs: number) => {
+    setSeekPositionMs(newMs);
+  };
+
+  const handleSeekCommit = async (targetMs: number) => {
+    setSeekPositionMs(null);
+    if (track) {
+      setTrack({ ...track, progressMs: targetMs });
+    }
+    await seekSpotifyTrack(targetMs);
+    setTimeout(syncPlayback, 500);
+  };
+
   // Controles de Reprodução
   const handleTogglePlay = async () => {
     if (!track || isBusy) return;
@@ -310,6 +338,7 @@ export const SpotifyPlayer: React.FC = () => {
     setVolume(newVol);
     await setSpotifyVolume(newVol);
   };
+
 
   // Tocar a playlist inteira
   const handlePlayPlaylist = async (uri: string) => {
@@ -892,7 +921,8 @@ export const SpotifyPlayer: React.FC = () => {
   }
 
   // 6. Player Principal Completo
-  const progressPercent = track.durationMs > 0 ? (track.progressMs / track.durationMs) * 100 : 0;
+  const currentProgressMs = seekPositionMs !== null ? seekPositionMs : (track.progressMs || 0);
+  const progressPercent = track.durationMs > 0 ? (currentProgressMs / track.durationMs) * 100 : 0;
 
   return (
     <>
@@ -961,13 +991,25 @@ export const SpotifyPlayer: React.FC = () => {
           </div>
         </div>
 
-        {/* Barra de Progresso */}
+        {/* Barra de Progresso com Seek Interativo */}
         <div className="spotify-progress-container">
-          <div className="spotify-progress-bar">
-            <div className="spotify-progress-fill" style={{ width: `${progressPercent}%` }} />
+          <div className={`spotify-progress-bar interactive ${seekPositionMs !== null ? 'is-dragging' : ''}`}>
+            <div className="spotify-progress-fill" style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }} />
+            <div className="spotify-progress-thumb" style={{ left: `${Math.min(100, Math.max(0, progressPercent))}%` }} />
+            <input
+              type="range"
+              min="0"
+              max={track.durationMs || 100}
+              value={currentProgressMs}
+              onChange={(e) => handleSeekChange(Number(e.target.value))}
+              onMouseUp={(e) => handleSeekCommit(Number((e.target as HTMLInputElement).value))}
+              onTouchEnd={(e) => handleSeekCommit(Number((e.target as HTMLInputElement).value))}
+              className="spotify-progress-slider-overlay"
+              title="Arraste ou toque para ir para qualquer segundo da música"
+            />
           </div>
           <div className="spotify-time-labels">
-            <span>{formatTime(track.progressMs)}</span>
+            <span>{formatTime(currentProgressMs)}</span>
             <span>{formatTime(track.durationMs)}</span>
           </div>
         </div>

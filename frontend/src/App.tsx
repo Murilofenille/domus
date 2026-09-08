@@ -6,6 +6,7 @@ import { TopBar } from './components/TopBar';
 import { SidePanel, type RoomDeviceItem } from './components/SidePanel';
 import { SettingsModal, type DeviceInfoItem } from './components/SettingsModal';
 import { SpotifyPlayer } from './components/SpotifyPlayer';
+import { ReviewModal } from './components/ReviewModal';
 import { automationPins } from './houseLayout';
 import type { Room } from './types';
 import { fetchDeviceStatus, sendTuyaCommand, fetchDeviceConfig } from './services/api';
@@ -28,6 +29,7 @@ export function App() {
 
   // Estados do Gerenciador de Dispositivos e Canais
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [devicesList, setDevicesList] = useState<DeviceInfoItem[]>([]);
   const [deviceRooms, setDeviceRooms] = useState<Record<string, string>>({});
   const [channelNames, setChannelNames] = useState<Record<string, Record<string, string>>>({});
@@ -275,6 +277,7 @@ export function App() {
         totalLightsCount={totalLightsCount}
         onToggleAll={handleToggleAll}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenReview={() => setIsReviewOpen(true)}
       />
 
       {/* Painel Lateral com Controles Dinâmicos */}
@@ -393,6 +396,12 @@ export function App() {
           })));
         }}
         onToggleSwitch={handleToggleDeviceSwitch}
+      />
+
+      {/* Modal de Avaliação no Google Maps */}
+      <ReviewModal
+        isOpen={isReviewOpen}
+        onClose={() => setIsReviewOpen(false)}
       />
     </div>
   );

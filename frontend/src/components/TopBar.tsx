@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, Power, Settings, Maximize, Minimize } from 'lucide-react';
+import { Wifi, Power, Settings, Maximize, Minimize, Star } from 'lucide-react';
 
 interface TopBarProps {
   isOnline: boolean;
@@ -7,6 +7,7 @@ interface TopBarProps {
   totalLightsCount: number;
   onToggleAll: () => void;
   onOpenSettings: () => void;
+  onOpenReview?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -14,7 +15,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   activeLightsCount,
   totalLightsCount,
   onToggleAll,
-  onOpenSettings
+  onOpenSettings,
+  onOpenReview
 }) => {
   const [time, setTime] = useState(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -73,6 +75,17 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Ações Rápidas & Relógio */}
       <div className="topbar-right">
+        {onOpenReview && (
+          <button
+            onClick={onOpenReview}
+            className="topbar-review-btn"
+            title="Avaliar nossa Área de Lazer no Google Maps"
+          >
+            <Star size={14} fill="#F59E0B" color="#F59E0B" />
+            <span>Avaliar</span>
+          </button>
+        )}
+
         <button
           onClick={handleToggleFullscreen}
           className="topbar-settings-btn"

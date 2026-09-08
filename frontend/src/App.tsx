@@ -176,6 +176,8 @@ export function App() {
     loadConfig();
   }, [loadConfig]);
 
+  const [spotifyAuthKey, setSpotifyAuthKey] = useState(0);
+
   // Tratar retorno de login do Spotify OAuth PKCE (?code=...)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -184,6 +186,9 @@ export function App() {
 
     if (code) {
       handleSpotifyCallback(code, stateVerifier).then(() => {
+        setSpotifyAuthKey(k => k + 1);
+        window.dispatchEvent(new CustomEvent('spotify-auth-success'));
+
         // Notificar outras abas ou janela do PWA
         try {
           const bc = new BroadcastChannel('spotify_auth_channel');
@@ -510,6 +515,7 @@ export function App() {
           totalLightsCount={totalLightsCount}
           poolTemperature={poolTemperature}
           quickSwitches={quickSwitches}
+          spotifyAuthKey={spotifyAuthKey}
         />
       ) : (
         <>

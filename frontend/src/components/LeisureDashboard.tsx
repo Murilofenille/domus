@@ -13,11 +13,15 @@ import {
   CloudLightning,
   Sparkles,
   Speaker,
-  Lightbulb
+  Lightbulb,
+  ListMusic,
+  RotateCw,
+  LogOut
 } from 'lucide-react';
 import {
   isSpotifyConnected,
   loginWithSpotify,
+  logoutSpotify,
   fetchPlaybackState,
   toggleSpotifyPlay,
   nextSpotifyTrack,
@@ -25,8 +29,13 @@ import {
   seekSpotifyTrack,
   fetchAvailableDevices,
   transferSpotifyPlayback,
+  fetchUserPlaylists,
+  playSpotifyContext,
+  initSpotifyWebPlayer,
+  getLocalDeviceId,
   type SpotifyTrack,
-  type SpotifyDevice
+  type SpotifyDevice,
+  type SpotifyPlaylist
 } from '../services/spotify';
 import { fetchWeatherData, type WeatherData } from '../services/weather';
 
@@ -46,6 +55,7 @@ interface LeisureDashboardProps {
   poolTemperature?: number | null;
   onToggleShortcut?: (shortcutKey: string) => void;
   quickSwitches?: QuickDeviceSwitch[];
+  spotifyAuthKey?: number;
 }
 
 export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
@@ -54,15 +64,21 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
   onToggleAllLights,
   activeLightsCount = 0,
   poolTemperature = 32,
-  quickSwitches = []
+  quickSwitches = [],
+  spotifyAuthKey = 0
 }) => {
   // --- Spotify State ---
   const [spotifyConnected, setSpotifyConnected] = useState<boolean>(() => isSpotifyConnected());
   const [track, setTrack] = useState<SpotifyTrack | null>(null);
   const [isBusy, setIsBusy] = useState<boolean>(false);
+  const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [seekPosMs, setSeekPosMs] = useState<number | null>(null);
   const [devices, setDevices] = useState<SpotifyDevice[]>([]);
   const [isDeviceMenuOpen, setIsDeviceMenuOpen] = useState<boolean>(false);
+  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+  const [isLoadingPlaylists, setIsLoadingPlaylists] = useState<boolean>(false);
+  const [isPlaylistsOpen, setIsPlaylistsOpen] = useState<boolean>(false);
+  const [localDeviceId, setLocalDeviceId] = useState<string | null>(null);
 
   // --- Weather State ---
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -101,46 +117,90 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
     };
   }, []);
 
-  // Sincronizar Spotify
+  // Sincronizar estado e conexão do Spotify
   const syncSpotify = useCallback(async () => {
-    if (!isSpotifyConnected()) {
-      setSpotifyConnected(false);
+    const isConn = isSpotifyConnected();
+    setSpotifyConnected(isConn);
+    if (!isConn) {
       setTrack(null);
       return;
     }
-    setSpotifyConnected(true);
     const state = await fetchPlaybackState();
     setTrack(state);
   }, []);
 
+  // Sincronizar quando receber authKey ou montar
+  useEffect(() => {
+    syncSpotify();
+  }, [spotifyAuthKey, syncSpotify]);
+
+  // Polling regular a cada 3.5s
   useEffect(() => {
     syncSpotify();
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         syncSpotify();
       }
-    }, 3000);
+    }, 3500);
     return () => clearInterval(interval);
   }, [syncSpotify]);
 
-  // Escutar login do Spotify em tempo real de outras abas ou janelas
+  // Inicializar o Web Playback SDK no tablet para que o DOMUS apareça nos aparelhos Connect
   useEffect(() => {
-    const handleAuthMessage = (e: MessageEvent) => {
-      if (e.data?.type === 'SPOTIFY_AUTH_SUCCESS') {
-        syncSpotify();
+    if (!spotifyConnected) return;
+
+    initSpotifyWebPlayer({
+      onReady: (devId) => {
+        setLocalDeviceId(devId);
+      },
+      onNotReady: () => {
+        setLocalDeviceId(null);
+      },
+      onPlayerStateChanged: (state) => {
+        if (state) {
+          syncSpotify();
+        }
+      },
+      onError: (type, message) => {
+        if (type === 'account_error') {
+          console.warn('Spotify Web Playback SDK requer conta Premium:', message);
+        }
       }
+    });
+
+    const currentLocal = getLocalDeviceId();
+    if (currentLocal) setLocalDeviceId(currentLocal);
+  }, [spotifyConnected, syncSpotify]);
+
+  // Escutar login do Spotify em tempo real de abas, janelas e eventos locais
+  useEffect(() => {
+    const handleAuthEvent = () => {
+      syncSpotify();
     };
+
+    window.addEventListener('spotify-auth-success', handleAuthEvent);
+    window.addEventListener('spotify-auth-changed', handleAuthEvent);
+    window.addEventListener('storage', handleAuthEvent);
+    window.addEventListener('focus', handleAuthEvent);
+    document.addEventListener('visibilitychange', handleAuthEvent);
+
     let bc: BroadcastChannel | null = null;
     try {
       bc = new BroadcastChannel('spotify_auth_channel');
-      bc.onmessage = handleAuthMessage;
+      bc.onmessage = (e) => {
+        if (e.data?.type === 'SPOTIFY_AUTH_SUCCESS') {
+          syncSpotify();
+        }
+      };
     } catch {}
-    window.addEventListener('message', handleAuthMessage);
-    window.addEventListener('storage', syncSpotify);
+
     return () => {
-      if (bc) bc.close();
-      window.removeEventListener('message', handleAuthMessage);
-      window.removeEventListener('storage', syncSpotify);
+      bc?.close();
+      window.removeEventListener('spotify-auth-success', handleAuthEvent);
+      window.removeEventListener('spotify-auth-changed', handleAuthEvent);
+      window.removeEventListener('storage', handleAuthEvent);
+      window.removeEventListener('focus', handleAuthEvent);
+      document.removeEventListener('visibilitychange', handleAuthEvent);
     };
   }, [syncSpotify]);
 
@@ -204,6 +264,49 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
     setTimeout(syncSpotify, 700);
   };
 
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    try {
+      await loginWithSpotify();
+    } catch (err) {
+      console.error('Erro ao conectar Spotify:', err);
+      setIsConnecting(false);
+    }
+  };
+
+  const handleReconnect = () => {
+    logoutSpotify();
+    setSpotifyConnected(false);
+    setTrack(null);
+    loginWithSpotify();
+  };
+
+  const handleDisconnect = () => {
+    logoutSpotify();
+    setSpotifyConnected(false);
+    setTrack(null);
+    setIsPlaylistsOpen(false);
+    setIsDeviceMenuOpen(false);
+  };
+
+  const handleOpenPlaylists = async () => {
+    setIsPlaylistsOpen(true);
+    if (playlists.length === 0) {
+      setIsLoadingPlaylists(true);
+      const list = await fetchUserPlaylists();
+      setPlaylists(list);
+      setIsLoadingPlaylists(false);
+    }
+  };
+
+  const handlePlayPlaylist = async (playlistUri: string) => {
+    setIsBusy(true);
+    await playSpotifyContext(playlistUri, track?.deviceId || localDeviceId || undefined);
+    setIsBusy(false);
+    setIsPlaylistsOpen(false);
+    setTimeout(syncSpotify, 700);
+  };
+
   const formatTrackTime = (ms: number) => {
     const totalSec = Math.floor(ms / 1000);
     const mins = Math.floor(totalSec / 60);
@@ -241,6 +344,7 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
         {/* COLUNA ESQUERDA: Card do Player Spotify */}
         <div className="leisure-spotify-card">
           {spotifyConnected && track ? (
+            /* 1. Estado Conectado & Tocando */
             <>
               <div className="leisure-album-wrapper">
                 {track.albumArt ? (
@@ -286,14 +390,16 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
               {/* Controles de Reprodução */}
               <div className="leisure-controls-row">
                 <button
-                  onClick={handleOpenDevices}
+                  type="button"
+                  onClick={handleOpenPlaylists}
                   className="leisure-control-btn-subtle"
-                  title="Aparelhos de Som"
+                  title="Abrir Playlists"
                 >
-                  <Speaker size={20} />
+                  <ListMusic size={20} />
                 </button>
 
                 <button
+                  type="button"
                   onClick={handlePrevious}
                   className="leisure-control-btn"
                   title="Música Anterior"
@@ -302,6 +408,7 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
                 </button>
 
                 <button
+                  type="button"
                   onClick={handleTogglePlay}
                   className="leisure-play-pause-btn"
                   title={track.isPlaying ? "Pausar" : "Tocar"}
@@ -314,6 +421,7 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
                 </button>
 
                 <button
+                  type="button"
                   onClick={handleNext}
                   className="leisure-control-btn"
                   title="Próxima Música"
@@ -322,49 +430,169 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
                 </button>
 
                 <button
-                  onClick={syncSpotify}
+                  type="button"
+                  onClick={handleOpenDevices}
                   className="leisure-control-btn-subtle"
-                  title="Atualizar Status"
+                  title="Aparelhos de Som"
                 >
-                  <Sparkles size={20} />
+                  <Speaker size={20} />
+                </button>
+              </div>
+            </>
+          ) : spotifyConnected ? (
+            /* 2. Estado Conectado mas Ocioso (sem música tocando) */
+            <div className="leisure-spotify-idle">
+              <div className="leisure-album-placeholder idle">
+                <Music size={52} className="text-emerald-400" />
+                <span className="idle-pulse-dot" />
+              </div>
+
+              <div className="leisure-track-info">
+                <div className="spotify-connected-badge">
+                  <span className="badge-dot" />
+                  <span>Spotify Conectado</span>
+                </div>
+                <h3 className="leisure-track-title">Área de Lazer Pronta</h3>
+                <p className="leisure-track-artist">Escolha uma playlist abaixo ou dê play no seu celular</p>
+              </div>
+
+              <div className="leisure-idle-actions">
+                <button
+                  type="button"
+                  onClick={handleOpenPlaylists}
+                  className="leisure-idle-cta-btn"
+                  title="Ver e Tocar Playlists"
+                >
+                  <ListMusic size={18} />
+                  <span>Escolher Playlist</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenDevices}
+                  className="leisure-idle-subtle-btn"
+                  title="Onde tocar?"
+                >
+                  <Speaker size={18} />
+                  <span>Aparelhos</span>
                 </button>
               </div>
 
-              {/* Menu Flutuante de Seleção de Caixas de Som */}
-              {isDeviceMenuOpen && (
-                <div className="leisure-devices-dropdown">
-                  <div className="leisure-dropdown-header">
-                    <span>Onde tocar?</span>
-                    <button onClick={() => setIsDeviceMenuOpen(false)}>✕</button>
-                  </div>
-                  {devices.length === 0 ? (
-                    <div className="leisure-dropdown-empty">Nenhum aparelho detectado</div>
-                  ) : (
-                    devices.map((d) => (
-                      <button
-                        key={d.id}
-                        onClick={() => handleSelectDevice(d.id)}
-                        className={`leisure-device-opt ${d.isActive ? 'active' : ''}`}
-                      >
-                        <span>{d.name}</span>
-                        {d.isActive && <span className="text-emerald-400 text-xs">● Ativo</span>}
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
-            </>
+              <div className="leisure-idle-footer">
+                <button type="button" onClick={handleReconnect} className="leisure-footer-link" title="Renovar Permissões / Trocar Conta">
+                  <RotateCw size={12} />
+                  <span>Reconectar</span>
+                </button>
+                <span className="footer-dot">•</span>
+                <button type="button" onClick={handleDisconnect} className="leisure-footer-link" title="Sair do Spotify">
+                  <LogOut size={12} />
+                  <span>Desconectar</span>
+                </button>
+              </div>
+            </div>
           ) : (
-            /* Estado Desconectado do Spotify */
+            /* 3. Estado Desconectado do Spotify */
             <div className="leisure-spotify-empty">
               <div className="leisure-album-placeholder">
-                <Music size={72} className="text-gray-400" />
+                <svg className="spotify-icon-empty" viewBox="0 0 24 24" width="56" height="56" fill="#1DB954">
+                  <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.498 17.306c-.217.355-.678.47-1.033.253-2.828-1.728-6.388-2.119-10.582-1.16-.407.093-.814-.162-.907-.568-.093-.406.162-.813.568-.906 4.6-.1.05 8.547.487 11.7 2.414.355.217.47.678.254 1.033zm1.467-3.262c-.273.444-.855.586-1.299.313-3.238-1.99-8.175-2.566-12.006-1.403-.498.151-1.026-.134-1.177-.632-.152-.498.134-1.026.632-1.178 4.38-1.33 9.82-.693 13.537 1.6 4.444.274.586.855.313 1.3zm.126-3.41c-3.882-2.305-10.292-2.518-14.01-1.388-.596.181-1.229-.158-1.41-.754-.182-.596.158-1.229.754-1.41 4.269-1.296 11.35-1.045 15.823 1.611.536.318.71 1.013.392 1.549-.318.536-1.013.71-1.549.392z" />
+                </svg>
               </div>
               <h3 className="leisure-track-title">Spotify Área de Lazer</h3>
               <p className="leisure-track-artist">Conecte sua conta para tocar músicas</p>
-              <button onClick={loginWithSpotify} className="leisure-spotify-connect-btn">
-                <span>Conectar Spotify</span>
+              <button
+                type="button"
+                onClick={handleConnect}
+                className="leisure-spotify-connect-btn"
+                disabled={isConnecting}
+              >
+                <svg className="spotify-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.498 17.306c-.217.355-.678.47-1.033.253-2.828-1.728-6.388-2.119-10.582-1.16-.407.093-.814-.162-.907-.568-.093-.406.162-.813.568-.906 4.6-.1.05 8.547.487 11.7 2.414.355.217.47.678.254 1.033zm1.467-3.262c-.273.444-.855.586-1.299.313-3.238-1.99-8.175-2.566-12.006-1.403-.498.151-1.026-.134-1.177-.632-.152-.498.134-1.026.632-1.178 4.38-1.33 9.82-.693 13.537 1.6 4.444.274.586.855.313 1.3zm.126-3.41c-3.882-2.305-10.292-2.518-14.01-1.388-.596.181-1.229-.158-1.41-.754-.182-.596.158-1.229.754-1.41 4.269-1.296 11.35-1.045 15.823 1.611.536.318.71 1.013.392 1.549-.318.536-1.013.71-1.549.392z" />
+                </svg>
+                <span>{isConnecting ? "Conectando..." : "Conectar Spotify"}</span>
               </button>
+            </div>
+          )}
+
+          {/* Menu Flutuante de Seleção de Caixas de Som */}
+          {isDeviceMenuOpen && (
+            <div className="leisure-devices-dropdown">
+              <div className="leisure-dropdown-header">
+                <span>Onde tocar?</span>
+                <button type="button" onClick={() => setIsDeviceMenuOpen(false)}>✕</button>
+              </div>
+              {devices.length === 0 ? (
+                <div className="leisure-dropdown-empty">Nenhum aparelho detectado</div>
+              ) : (
+                devices.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => handleSelectDevice(d.id)}
+                    className={`leisure-device-opt ${d.isActive ? 'active' : ''}`}
+                  >
+                    <span>{d.name}</span>
+                    {d.isActive && <span className="text-emerald-400 text-xs">● Ativo</span>}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Modal de Playlists */}
+          {isPlaylistsOpen && (
+            <div className="leisure-playlists-overlay" onClick={() => setIsPlaylistsOpen(false)}>
+              <div className="leisure-playlists-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="leisure-modal-header">
+                  <div className="leisure-modal-title-row">
+                    <ListMusic size={22} className="text-emerald-400" />
+                    <span className="leisure-modal-title">Suas Playlists</span>
+                  </div>
+                  <button type="button" onClick={() => setIsPlaylistsOpen(false)} className="leisure-modal-close">✕</button>
+                </div>
+
+                <div className="leisure-playlists-body">
+                  {isLoadingPlaylists ? (
+                    <div className="leisure-loading-box">
+                      <Sparkles size={24} className="animate-spin text-emerald-400" />
+                      <span>Carregando playlists...</span>
+                    </div>
+                  ) : playlists.length === 0 ? (
+                    <div className="leisure-empty-box">
+                      <p>Nenhuma playlist encontrada.</p>
+                      <button type="button" onClick={handleReconnect} className="leisure-retry-btn">
+                        Renovar Permissões
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="leisure-playlists-grid">
+                      {playlists.map((pl) => (
+                        <div
+                          key={pl.id}
+                          onClick={() => handlePlayPlaylist(pl.uri)}
+                          className="leisure-playlist-card"
+                          title={`Tocar ${pl.name}`}
+                        >
+                          <div className="leisure-pl-art-wrap">
+                            {pl.image ? (
+                              <img src={pl.image} alt={pl.name} className="leisure-pl-img" />
+                            ) : (
+                              <div className="leisure-pl-fallback">
+                                <Music size={24} />
+                              </div>
+                            )}
+                            <div className="leisure-pl-hover-btn">
+                              <Play size={18} fill="currentColor" />
+                            </div>
+                          </div>
+                          <span className="leisure-pl-title" title={pl.name}>{pl.name}</span>
+                          <span className="leisure-pl-sub">{pl.tracksTotal} faixas</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

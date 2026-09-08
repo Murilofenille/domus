@@ -68,13 +68,13 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
-      antialias: true,
+      antialias: !isMobileOrTablet,
       alpha: false,
       powerPreference: 'high-performance',
-      precision: isMobileOrTablet ? 'mediump' : 'highp'
+      precision: 'highp' // CRUCIAL: 'highp' evita z-fighting e artefatos escuros no depth buffer
     });
-    // Em telas de alta densidade (retina tablet 260-300+ PPI), 1.35 é imperceptível contra 2.0, mas economiza ~50% de fillrate
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileOrTablet ? 1.35 : 1.75));
+    // No tablet/celular, pixelRatio 1.0 reduz em até 75% o esforço da GPU e crava 60 FPS
+    renderer.setPixelRatio(isMobileOrTablet ? 1.0 : Math.min(window.devicePixelRatio, 1.25));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Otimização crucial: a luz solar e a arquitetura são estáticas; renderiza o shadow map sob demanda
@@ -284,6 +284,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
       const h = container.clientHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      renderer.setPixelRatio(isMobileOrTablet ? 1.0 : Math.min(window.devicePixelRatio, 1.25));
       renderer.setSize(w, h, false);
       updatePins();
     };

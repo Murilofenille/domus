@@ -151,8 +151,14 @@ export function finishScene(
   const plaster = new THREE.MeshStandardMaterial({ color: '#8b8c87', roughness: 0.92 });
   const metal = new THREE.MeshStandardMaterial({ color: '#171b1d', metalness: 0.48, roughness: 0.34 });
   const granite = new THREE.MeshStandardMaterial({ color: '#202326', roughness: 0.23, metalness: 0.22 });
-  const coping = new THREE.MeshStandardMaterial({ color: '#e3d7bd', roughness: 0.65 });
-  const poolTile = new THREE.MeshStandardMaterial({ map: tiles, roughness: 0.33, metalness: 0.07 });
+  const poolTile = new THREE.MeshStandardMaterial({
+    map: tiles,
+    roughness: 0.35,
+    metalness: 0.05,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1
+  });
   const glowingArandelas = new THREE.MeshStandardMaterial({
     color: '#221a12',
     emissive: '#ff9d3b',
@@ -165,7 +171,6 @@ export function finishScene(
   const graniteIDs = new Set([9, 10, 13, 18]);
   const byId = new Map(meshes.map(m => [m.userData.id, m]));
 
-  const waterUniforms: { value: number }[] = [];
   const arandelaLights: THREE.PointLight[] = [];
 
   function box(name: string, x: number, y: number, z: number, w: number, h: number, d: number, mat: THREE.Material) {
@@ -175,14 +180,6 @@ export function finishScene(
     obj.castShadow = true;
     obj.receiveShadow = true;
     scene.add(obj);
-    return obj;
-  }
-
-  function beam(a: THREE.Vector3, b: THREE.Vector3, width: number, mat: THREE.Material) {
-    const delta = new THREE.Vector3().subVectors(b, a);
-    const obj = box('Borda em pedra', 0, 0, 0, width, width, delta.length() + width, mat);
-    obj.position.copy(a).add(b).multiplyScalar(0.5);
-    obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), delta.normalize());
     return obj;
   }
 
@@ -203,7 +200,40 @@ export function finishScene(
     applyFloorFinishes(baseFloor, byId.get(49), divider);
   }
 
-  // Superfície da água e revestimento da piscina
+  // Textura suave de água cristalina em movimento
+  const waterCanvas = document.createElement('canvas');
+  waterCanvas.width = waterCanvas.height = 256;
+  const wctx = waterCanvas.getContext('2d')!;
+  wctx.fillStyle = '#0284c7';
+  wctx.fillRect(0, 0, 256, 256);
+  wctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+  wctx.lineWidth = 2.0;
+  for (let i = 0; i < 16; i++) {
+    const y0 = i * 16;
+    wctx.beginPath();
+    wctx.moveTo(0, y0);
+    for (let x = 0; x <= 256; x += 16) {
+      const y = y0 + Math.sin((x + i * 20) * 0.08) * 4.0;
+      wctx.lineTo(x, y);
+    }
+    wctx.stroke();
+  }
+  const waterTexture = new THREE.CanvasTexture(waterCanvas);
+  waterTexture.wrapS = waterTexture.wrapT = THREE.RepeatWrapping;
+  waterTexture.repeat.set(4, 4);
+  waterTexture.colorSpace = THREE.SRGBColorSpace;
+
+  const waterMaterial = new THREE.MeshStandardMaterial({
+    color: '#0284c7',
+    map: waterTexture,
+    roughness: 0.12,
+    metalness: 0.15,
+    transparent: true,
+    opacity: 0.88,
+    depthWrite: true
+  });
+
+  // Superfície da água e revestimento da piscina (sem vigas artificiais e sem clipping errôneo)
   let poolLight: THREE.PointLight | null = null;
   for (const id of [3, 5]) {
     const mesh = byId.get(id);
@@ -213,71 +243,30 @@ export function finishScene(
     const top = g.boundingBox ? g.boundingBox.max.y : 0;
     const p = g.attributes.position;
     const coords: number[] = [];
-    const edges = new Map<string, { a: THREE.Vector3; b: THREE.Vector3; count: number }>();
-    const key = (v: THREE.Vector3) => `${v.x.toFixed(4)},${v.z.toFixed(4)}`;
 
     for (let i = 0; i < p.count; i += 3) {
       const a = new THREE.Vector3().fromBufferAttribute(p, i);
       const b = new THREE.Vector3().fromBufferAttribute(p, i + 1);
       const c = new THREE.Vector3().fromBufferAttribute(p, i + 2);
       if ([a, b, c].every(v => Math.abs(v.y - top) < 0.0001)) {
-        for (const v of [a, b, c]) coords.push(v.x, top + 0.045, v.z);
-        for (const [u, v] of [[a, b], [b, c], [c, a]]) {
-          const k = [key(u), key(v)].sort().join('|');
-          if (edges.has(k)) edges.get(k)!.count++;
-          else edges.set(k, { a: u, b: v, count: 1 });
-        }
+        // Água nivelada 1.2 cm abaixo da borda física da piscina
+        const waterY = top - 0.012;
+        for (const v of [a, b, c]) coords.push(v.x, waterY, v.z);
       }
     }
 
     worldUV(g, 0.8);
     mesh.material = poolTile;
 
-    const wg = new THREE.BufferGeometry();
-    wg.setAttribute('position', new THREE.Float32BufferAttribute(coords, 3));
-    wg.computeVertexNormals();
+    if (coords.length > 0) {
+      const wg = new THREE.BufferGeometry();
+      wg.setAttribute('position', new THREE.Float32BufferAttribute(coords, 3));
+      wg.computeVertexNormals();
 
-    const water = new THREE.MeshPhysicalMaterial({
-      color: '#087da7',
-      roughness: 0.17,
-      metalness: 0.12,
-      clearcoat: 1,
-      clearcoatRoughness: 0.1,
-      transparent: true,
-      opacity: 0.82,
-      side: THREE.FrontSide,
-      depthWrite: false
-    });
-
-    water.onBeforeCompile = (shader) => {
-      shader.uniforms.uTime = { value: 0 };
-      waterUniforms.push(shader.uniforms.uTime);
-      shader.vertexShader = 'varying vec3 vWater;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvWater=position;');
-      shader.fragmentShader = 'uniform float uTime; varying vec3 vWater;\n' + shader.fragmentShader.replace(
-        '#include <normal_fragment_maps>',
-        `#include <normal_fragment_maps>
-        float a = sin(vWater.x * 17.0 + vWater.z * 9.0 + uTime * 0.65);
-        float b = cos(vWater.z * 23.0 - vWater.x * 6.0 - uTime * 0.47);
-        normal = normalize(normal + vec3(a * 0.07, b * 0.06, 0.0));`
-      ).replace(
-        '#include <color_fragment>',
-        `#include <color_fragment>
-        float ca = pow(max(0.0, sin(vWater.x * 13.0 + sin(vWater.z * 11.0 + uTime * 0.4)) + cos(vWater.z * 15.0 + sin(vWater.x * 7.0 - uTime * 0.3))) * 0.5, 5.0);
-        diffuseColor.rgb += vec3(0.13, 0.28, 0.3) * ca;`
-      );
-    };
-
-    const surface = new THREE.Mesh(wg, water);
-    surface.name = id === 3 ? 'Eau — hidro' : 'Água — piscina';
-    surface.renderOrder = 2;
-    scene.add(surface);
-
-    for (const edge of edges.values()) {
-      if (edge.count === 1) {
-        const a = edge.a.clone(), b = edge.b.clone();
-        a.y = b.y = top + 0.13;
-        beam(a, b, 0.18, coping);
-      }
+      const surface = new THREE.Mesh(wg, waterMaterial);
+      surface.name = id === 3 ? 'Água — hidro' : 'Água — piscina';
+      surface.renderOrder = 2;
+      scene.add(surface);
     }
   }
 
@@ -449,7 +438,8 @@ export function finishScene(
 
   return {
     update(t: number) {
-      waterUniforms.forEach(u => { u.value = t; });
+      waterTexture.offset.x = (t * 0.02) % 1;
+      waterTexture.offset.y = (t * 0.015) % 1;
     },
     setNight(on: boolean) {
       // Controla a intensidade da luz ambiente/reflexiva do céu noturno

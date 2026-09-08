@@ -1,20 +1,12 @@
 import type { TuyaDeviceStatus } from '../types';
 
-// Detecção automática inteligente de ambiente (Local x Vercel)
+// Detecção automática inteligente de ambiente (Vite Proxy Local x Vercel)
 const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL !== undefined && import.meta.env.VITE_API_URL !== '') {
     return import.meta.env.VITE_API_URL;
   }
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    // Se estiver rodando localmente (dev local)
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return `http://${hostname}:8000`;
-    }
-    // Na Vercel ou na Web: mesma origem (sem CORS, via rotas serverless /api/...)
-    return '';
-  }
-  return 'http://localhost:8000';
+  // Em desenvolvimento (Vite proxy) e produção (Vercel), rota relativa '/api' funciona em localhost, tablet e web
+  return '';
 };
 
 export const API_BASE = getApiBaseUrl();

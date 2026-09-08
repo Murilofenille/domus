@@ -61,6 +61,13 @@ export const TopBar: React.FC<TopBarProps> = ({
             src="/LogotipoDomus.svg"
             alt="DOMUS Smart Home"
             className="topbar-brand-logo"
+            onError={(e) => {
+              const target = e.currentTarget;
+              if (!target.dataset.triedFallback) {
+                target.dataset.triedFallback = '1';
+                target.src = '/logopwa.png';
+              }
+            }}
           />
         </div>
       </div>

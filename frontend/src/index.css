@@ -47,10 +47,12 @@ html, body, #root {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.95);
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 18px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 .topbar-left {
@@ -65,6 +67,20 @@ html, body, #root {
   gap: 8px;
 }
 
+.topbar-brand-logo {
+  height: 38px;
+  width: auto;
+  max-width: 170px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(59, 130, 246, 0.35));
+  transition: transform 0.2s ease;
+  user-select: none;
+}
+
+.topbar-brand-logo:hover {
+  transform: scale(1.03);
+}
+
 .brand-dot {
   width: 10px;
   height: 10px;
@@ -77,17 +93,17 @@ html, body, #root {
   font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: #0F172A;
+  color: #F8FAFC;
 }
 
 .brand-divider {
-  color: #CBD5E1;
+  color: rgba(255, 255, 255, 0.2);
   font-weight: 300;
 }
 
 .brand-sub {
   font-size: 13px;
-  color: #64748B;
+  color: #94A3B8;
   font-weight: 500;
 }
 
@@ -110,15 +126,15 @@ html, body, #root {
 }
 
 .status-pill.online {
-  background: #ECFDF5;
-  color: #059669;
-  border: 1px solid #A7F3D0;
+  background: rgba(16, 185, 129, 0.16);
+  color: #34D399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
 }
 
 .status-pill.offline {
-  background: #FEF2F2;
-  color: #DC2626;
-  border: 1px solid #FECACA;
+  background: rgba(239, 68, 68, 0.16);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
 .light-counter-pill {
@@ -126,12 +142,12 @@ html, body, #root {
   align-items: center;
   gap: 8px;
   padding: 6px 14px;
-  background: #F8FAFC;
-  border: 1px solid #E2E8F0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 30px;
   font-size: 12px;
   font-weight: 600;
-  color: #334155;
+  color: #E2E8F0;
 }
 
 .counter-dot {
@@ -152,9 +168,9 @@ html, body, #root {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: #0F172A;
+  background: rgba(255, 255, 255, 0.1);
   color: #FFFFFF;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
@@ -163,7 +179,8 @@ html, body, #root {
 }
 
 .quick-action-btn:hover {
-  background: #1E293B;
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.24);
   transform: translateY(-1px);
 }
 
@@ -173,11 +190,12 @@ html, body, #root {
 
 .time-display {
   padding: 6px 12px;
-  background: #F1F5F9;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   font-size: 13px;
   font-weight: 700;
-  color: #1E293B;
+  color: #F8FAFC;
 }
 
 /* Painel Lateral HUD */

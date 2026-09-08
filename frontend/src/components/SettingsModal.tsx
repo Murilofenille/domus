@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, Save, Check, Sliders, Cpu, Lightbulb, MapPin, Tag, Eye, EyeOff } from 'lucide-react';
+import { X, Search, Save, Check, Cpu, Lightbulb, MapPin, Tag, Eye, EyeOff } from 'lucide-react';
 import { rooms } from '../houseLayout';
 import { saveDeviceConfig } from '../services/api';
 
@@ -146,7 +146,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="settings-modal-header">
           <div className="settings-modal-title-wrap">
             <div className="settings-icon-badge">
-              <Sliders size={20} />
+              <img src="/logopwa.png" alt="DOMUS" style={{ width: 22, height: 22, borderRadius: 6, objectFit: 'contain' }} />
             </div>
             <div>
               <h2 className="settings-modal-title">Gerenciador de Dispositivos</h2>

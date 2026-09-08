@@ -54,14 +54,15 @@ export const TopBar: React.FC<TopBarProps> = ({
 
   return (
     <header className="topbar-container">
-      {/* Brand & Título */}
+      {/* Brand & Logotipo Domus */}
       <div className="topbar-left">
         <div className="brand-logo">
-          <div className="brand-dot" />
-          <span className="brand-title">DOMUS</span>
+          <img
+            src="/LogotipoDomus.svg"
+            alt="DOMUS Smart Home"
+            className="topbar-brand-logo"
+          />
         </div>
-        <span className="brand-divider">|</span>
-        <span className="brand-sub">Smart Home</span>
       </div>
 
       {/* Estatísticas e Status */}

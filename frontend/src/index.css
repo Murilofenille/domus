@@ -4636,14 +4636,11 @@ html, body, #root {
 /* Badge de Pin de Automação */
 .leisure-pin {
   position: absolute;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
   pointer-events: auto;
   cursor: pointer;
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.leisure-pin:hover {
-  transform: translate(-50%, -50%) scale(1.1);
+  will-change: transform;
 }
 
 .leisure-pin-badge {
@@ -4660,7 +4657,11 @@ html, body, #root {
   font-size: 13px;
   font-weight: 600;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.55);
-  transition: all 0.22s ease;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.22s ease, border-color 0.22s ease;
+}
+
+.leisure-pin-badge:hover {
+  transform: scale(1.08);
 }
 
 .leisure-pin-badge.active {
@@ -4687,12 +4688,14 @@ html, body, #root {
 /* Widget Flutuante da Piscina */
 .leisure-pool-widget {
   position: absolute;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
   pointer-events: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  will-change: transform;
 }
 
 .leisure-pool-temp {

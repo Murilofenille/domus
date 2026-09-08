@@ -245,7 +245,7 @@ export function finishScene(
       clearcoatRoughness: 0.1,
       transparent: true,
       opacity: 0.82,
-      side: THREE.DoubleSide,
+      side: THREE.FrontSide,
       depthWrite: false
     });
 

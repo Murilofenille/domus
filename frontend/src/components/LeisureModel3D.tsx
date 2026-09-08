@@ -15,12 +15,6 @@ interface LeisureModel3DProps {
   onNavigateHome?: () => void;
 }
 
-interface PinScreenPos {
-  x: number;
-  y: number;
-  visible: boolean;
-}
-
 export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
   devicesData,
   onToggleDeviceSwitch,
@@ -44,19 +38,14 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
   const finishesRef = useRef<FinishSceneResult | null>(null);
   const hemiRef = useRef<THREE.HemisphereLight | null>(null);
   const sunRef = useRef<THREE.DirectionalLight | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
 
-  // Posições dos pins de tela
-  const [pinPositions, setPinPositions] = useState<{
-    stairs: PinScreenPos;
-    arandelas: PinScreenPos;
-    gourmet: PinScreenPos;
-    pool: PinScreenPos;
-  }>({
-    stairs: { x: 0, y: 0, visible: false },
-    arandelas: { x: 0, y: 0, visible: false },
-    gourmet: { x: 0, y: 0, visible: false },
-    pool: { x: 0, y: 0, visible: false }
-  });
+  // Refs dos pins para atualização direta no DOM sem disparar re-render do React (60fps suave em tablets)
+  const stairsPinRef = useRef<HTMLDivElement>(null);
+  const arandelasPinRef = useRef<HTMLDivElement>(null);
+  const gourmetPinRef = useRef<HTMLDivElement>(null);
+  const poolPinRef = useRef<HTMLDivElement>(null);
+  const updatePinsRef = useRef<(() => void) | null>(null);
 
   // Extração dos status reais dos dispositivos Sonoff / Tuya
   const isStairOn = Boolean(devicesData['1000e4a34e']?.switch ?? devicesData['1000e4a34e']?.switch_1);
@@ -73,12 +62,27 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     const canvas = canvasRef.current;
     const container = containerRef.current;
 
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Detecção inteligente de tablets/mobile para ajuste de pixel ratio ótimo sem perda de nitidez
+    const isMobileOrTablet = /Android|iPhone|iPad|iPod|Tablet/i.test(navigator.userAgent) ||
+      (navigator.maxTouchPoints > 1 && window.innerWidth <= 1366);
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance',
+      precision: isMobileOrTablet ? 'mediump' : 'highp'
+    });
+    // Em telas de alta densidade (retina tablet 260-300+ PPI), 1.35 é imperceptível contra 2.0, mas economiza ~50% de fillrate
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileOrTablet ? 1.35 : 1.75));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Otimização crucial: a luz solar e a arquitetura são estáticas; renderiza o shadow map sob demanda
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = true;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
+    rendererRef.current = renderer;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#06080e'); // Noite profunda e luxuosa
@@ -90,7 +94,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
 
     const controls = new OrbitControls(camera, canvas);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
+    controls.dampingFactor = 0.08;
     controls.maxPolarAngle = Math.PI * 0.49;
     controls.maxDistance = 65;
     controls.minDistance = 6;
@@ -203,6 +207,10 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
         finishes.setGourmetLight(isGourmetOn);
         finishes.setPoolLight(isHydroBackOn || isHydroFeetOn);
         setIsLoading(false);
+        requestAnimationFrame(() => {
+          if (rendererRef.current) rendererRef.current.shadowMap.needsUpdate = true;
+          if (updatePinsRef.current) updatePinsRef.current();
+        });
       },
       (xhr) => {
         if (xhr.total > 0) {
@@ -215,40 +223,54 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
       }
     );
 
-    // Loop de renderização com animação da água e atualização da posição dos pins
+    // Vetor reutilizável para projeções de tela (Zero Garbage Collection)
+    const projVec = new THREE.Vector3();
+
+    const updatePins = () => {
+      if (!finishesRef.current || !container) return;
+      const coords = finishesRef.current.getCenterCoordinates();
+      const halfW = container.clientWidth / 2;
+      const halfH = container.clientHeight / 2;
+
+      const applyPos = (el: HTMLDivElement | null, pos: [number, number, number]) => {
+        if (!el) return;
+        projVec.set(pos[0], pos[1], pos[2]).project(camera);
+        const isBehind = projVec.z > 1;
+        const isVisible = !isBehind && projVec.x >= -1.05 && projVec.x <= 1.05 && projVec.y >= -1.05 && projVec.y <= 1.05;
+        if (!isVisible) {
+          if (el.style.display !== 'none') el.style.display = 'none';
+        } else {
+          const x = (projVec.x * halfW + halfW).toFixed(1);
+          const y = (-(projVec.y * halfH) + halfH).toFixed(1);
+          if (el.style.display !== 'block') el.style.display = 'block';
+          el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
+        }
+      };
+
+      applyPos(stairsPinRef.current, coords.stairs);
+      applyPos(arandelasPinRef.current, coords.arandelas);
+      applyPos(gourmetPinRef.current, coords.gourmet);
+      applyPos(poolPinRef.current, coords.pool);
+    };
+    updatePinsRef.current = updatePins;
+
+    // Atualiza pins imediatamente durante gestos de rotação/zoom no tablet
+    controls.addEventListener('change', updatePins);
+
+    // Loop de renderização fluido de 60fps sem travar a CPU do tablet
     let animId: number;
     const clock = new THREE.Clock();
 
     const renderLoop = () => {
       animId = requestAnimationFrame(renderLoop);
-      controls.update();
-      const elapsedTime = clock.getElapsedTime();
+      const moved = controls.update();
+      if (moved) {
+        updatePins();
+      }
 
+      const elapsedTime = clock.getElapsedTime();
       if (finishesRef.current) {
         finishesRef.current.update(elapsedTime);
-
-        // Projetar coordenadas 3D no plano 2D da tela para os Pins
-        const coords = finishesRef.current.getCenterCoordinates();
-        const halfW = container.clientWidth / 2;
-        const halfH = container.clientHeight / 2;
-
-        const project = (pos: [number, number, number]): PinScreenPos => {
-          const v = new THREE.Vector3(pos[0], pos[1], pos[2]);
-          v.project(camera);
-          const isBehind = v.z > 1;
-          return {
-            x: v.x * halfW + halfW,
-            y: -(v.y * halfH) + halfH,
-            visible: !isBehind && v.x >= -1 && v.x <= 1 && v.y >= -1 && v.y <= 1
-          };
-        };
-
-        setPinPositions({
-          stairs: project(coords.stairs),
-          arandelas: project(coords.arandelas),
-          gourmet: project(coords.gourmet),
-          pool: project(coords.pool)
-        });
       }
 
       renderer.render(scene, camera);
@@ -263,6 +285,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h, false);
+      updatePins();
     };
     window.addEventListener('resize', handleResize);
     handleResize();
@@ -270,6 +293,8 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
+      controls.removeEventListener('change', updatePins);
+      controls.dispose();
       renderer.dispose();
       scene.clear();
     };
@@ -313,6 +338,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
         sunRef.current.intensity = next ? 0.04 : 2.6;
       }
       if (finishesRef.current) finishesRef.current.setNight(next);
+      if (rendererRef.current) rendererRef.current.shadowMap.needsUpdate = true;
       return next;
     });
   }, []);
@@ -322,6 +348,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     setShowUpper(prev => {
       const next = !prev;
       if (finishesRef.current) finishesRef.current.setUpperVisible(next);
+      if (rendererRef.current) rendererRef.current.shadowMap.needsUpdate = true;
       return next;
     });
   }, []);
@@ -331,6 +358,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     setWallsLowered(prev => {
       const next = !prev;
       if (finishesRef.current) finishesRef.current.setWallScale(next ? 0.24 : 1.0);
+      if (rendererRef.current) rendererRef.current.shadowMap.needsUpdate = true;
       return next;
     });
   }, []);
@@ -360,6 +388,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
         break;
     }
     controls.update();
+    if (updatePinsRef.current) updatePinsRef.current();
   }, []);
 
   return (
@@ -383,110 +412,106 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
         </div>
       )}
 
-      {/* Pins Interativos de Automação Flutuantes */}
+      {/* Pins Interativos de Automação Flutuantes (Diretos via Refs - Zero React Re-renders) */}
       {!isLoading && (
         <div className="leisure-pins-layer">
           {/* Pin Escada */}
-          {pinPositions.stairs.visible && (
-            <div
-              className="leisure-pin"
-              style={{ left: `${pinPositions.stairs.x}px`, top: `${pinPositions.stairs.y}px` }}
-              onClick={() => onToggleDeviceSwitch('1000e4a34e', 'switch', isStairOn)}
-            >
-              <div className={`leisure-pin-badge ${isStairOn ? 'active' : ''}`}>
-                <Lightbulb size={14} color={isStairOn ? '#000000' : '#94A3B8'} />
-                <span>Escada</span>
-                <span className={`leisure-pin-dot ${isStairOn ? 'active' : ''}`} />
-              </div>
+          <div
+            ref={stairsPinRef}
+            className="leisure-pin"
+            style={{ display: 'none', willChange: 'transform' }}
+            onClick={() => onToggleDeviceSwitch('1000e4a34e', 'switch', isStairOn)}
+          >
+            <div className={`leisure-pin-badge ${isStairOn ? 'active' : ''}`}>
+              <Lightbulb size={14} color={isStairOn ? '#000000' : '#94A3B8'} />
+              <span>Escada</span>
+              <span className={`leisure-pin-dot ${isStairOn ? 'active' : ''}`} />
             </div>
-          )}
+          </div>
 
           {/* Pin Arandelas Piscina */}
-          {pinPositions.arandelas.visible && (
-            <div
-              className="leisure-pin"
-              style={{ left: `${pinPositions.arandelas.x}px`, top: `${pinPositions.arandelas.y}px` }}
-              onClick={() => onToggleDeviceSwitch('1000e4bd27', 'switch', isArandelaOn)}
-            >
-              <div className={`leisure-pin-badge ${isArandelaOn ? 'active' : ''}`}>
-                <Flame size={14} color={isArandelaOn ? '#000000' : '#94A3B8'} />
-                <span>Arandelas</span>
-                <span className={`leisure-pin-dot ${isArandelaOn ? 'active' : ''}`} />
-              </div>
+          <div
+            ref={arandelasPinRef}
+            className="leisure-pin"
+            style={{ display: 'none', willChange: 'transform' }}
+            onClick={() => onToggleDeviceSwitch('1000e4bd27', 'switch', isArandelaOn)}
+          >
+            <div className={`leisure-pin-badge ${isArandelaOn ? 'active' : ''}`}>
+              <Flame size={14} color={isArandelaOn ? '#000000' : '#94A3B8'} />
+              <span>Arandelas</span>
+              <span className={`leisure-pin-dot ${isArandelaOn ? 'active' : ''}`} />
             </div>
-          )}
+          </div>
 
           {/* Pin Iluminação Salão / Gourmet */}
-          {pinPositions.gourmet.visible && (
-            <div
-              className="leisure-pin"
-              style={{ left: `${pinPositions.gourmet.x}px`, top: `${pinPositions.gourmet.y}px` }}
-              onClick={() => onToggleDeviceSwitch('1000e4a34c', 'switch', isGourmetOn)}
-            >
-              <div className={`leisure-pin-badge ${isGourmetOn ? 'active' : ''}`}>
-                <Lightbulb size={14} color={isGourmetOn ? '#000000' : '#94A3B8'} />
-                <span>Salão / Gourmet</span>
-                <span className={`leisure-pin-dot ${isGourmetOn ? 'active' : ''}`} />
-              </div>
+          <div
+            ref={gourmetPinRef}
+            className="leisure-pin"
+            style={{ display: 'none', willChange: 'transform' }}
+            onClick={() => onToggleDeviceSwitch('1000e4a34c', 'switch', isGourmetOn)}
+          >
+            <div className={`leisure-pin-badge ${isGourmetOn ? 'active' : ''}`}>
+              <Lightbulb size={14} color={isGourmetOn ? '#000000' : '#94A3B8'} />
+              <span>Salão / Gourmet</span>
+              <span className={`leisure-pin-dot ${isGourmetOn ? 'active' : ''}`} />
             </div>
-          )}
+          </div>
 
           {/* Pin Piscina & Deck */}
-          {pinPositions.pool.visible && (
-            <div
-              className="leisure-pool-widget"
-              style={{ left: `${pinPositions.pool.x}px`, top: `${pinPositions.pool.y}px` }}
-            >
-              {poolTemperature !== undefined && (
-                <div className="leisure-pool-temp">
-                  <Thermometer size={13} color="#22D3EE" />
-                  <span>{poolTemperature}°C</span>
-                </div>
-              )}
-
-              <div className="leisure-pool-controls">
-                {/* Canal 1: Filtro */}
-                <button
-                  type="button"
-                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_1', isFilterOn)}
-                  title="Filtro (Canal 1)"
-                  className={`leisure-pool-btn ${isFilterOn ? 'active-pump' : ''}`}
-                >
-                  <RotateCw size={14} className={isFilterOn ? 'animate-spin' : ''} />
-                </button>
-
-                {/* Canal 2: Hidro Costa */}
-                <button
-                  type="button"
-                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_2', isHydroBackOn)}
-                  title="Hidro Costa (Canal 2)"
-                  className={`leisure-pool-btn ${isHydroBackOn ? 'active-hydro' : ''}`}
-                >
-                  <Sparkles size={15} />
-                </button>
-
-                {/* Canal 3: Aquecedor */}
-                <button
-                  type="button"
-                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_3', isHeaterOn)}
-                  title="Aquecedor (Canal 3)"
-                  className={`leisure-pool-btn ${isHeaterOn ? 'active-light' : ''}`}
-                >
-                  <Flame size={15} />
-                </button>
-
-                {/* Canal 4: Hidro Pé */}
-                <button
-                  type="button"
-                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_4', isHydroFeetOn)}
-                  title="Hidro Pé (Canal 4)"
-                  className={`leisure-pool-btn ${isHydroFeetOn ? 'active-water' : ''}`}
-                >
-                  <Droplets size={15} />
-                </button>
+          <div
+            ref={poolPinRef}
+            className="leisure-pool-widget"
+            style={{ display: 'none', willChange: 'transform' }}
+          >
+            {poolTemperature !== undefined && (
+              <div className="leisure-pool-temp">
+                <Thermometer size={13} color="#22D3EE" />
+                <span>{poolTemperature}°C</span>
               </div>
+            )}
+
+            <div className="leisure-pool-controls">
+              {/* Canal 1: Filtro */}
+              <button
+                type="button"
+                onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_1', isFilterOn)}
+                title="Filtro (Canal 1)"
+                className={`leisure-pool-btn ${isFilterOn ? 'active-pump' : ''}`}
+              >
+                <RotateCw size={14} className={isFilterOn ? 'animate-spin' : ''} />
+              </button>
+
+              {/* Canal 2: Hidro Costa */}
+              <button
+                type="button"
+                onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_2', isHydroBackOn)}
+                title="Hidro Costa (Canal 2)"
+                className={`leisure-pool-btn ${isHydroBackOn ? 'active-hydro' : ''}`}
+              >
+                <Sparkles size={15} />
+              </button>
+
+              {/* Canal 3: Aquecedor */}
+              <button
+                type="button"
+                onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_3', isHeaterOn)}
+                title="Aquecedor (Canal 3)"
+                className={`leisure-pool-btn ${isHeaterOn ? 'active-light' : ''}`}
+              >
+                <Flame size={15} />
+              </button>
+
+              {/* Canal 4: Hidro Pé */}
+              <button
+                type="button"
+                onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_4', isHydroFeetOn)}
+                title="Hidro Pé (Canal 4)"
+                className={`leisure-pool-btn ${isHydroFeetOn ? 'active-water' : ''}`}
+              >
+                <Droplets size={15} />
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
 

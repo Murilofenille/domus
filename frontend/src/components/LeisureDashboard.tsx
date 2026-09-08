@@ -679,7 +679,12 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
 
               <div className="quick-switches-list">
                 {displaySwitches.map((sw) => (
-                  <div key={sw.id} className="quick-switch-card">
+                  <div
+                    key={sw.id}
+                    className="quick-switch-card"
+                    onClick={sw.onToggle}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <div className={`quick-switch-icon-box ${sw.isOn ? 'active' : ''}`}>
                       <Lightbulb size={20} className={sw.isOn ? 'icon-on' : 'icon-off'} />
                     </div>
@@ -693,7 +698,10 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
                       type="button"
                       role="switch"
                       aria-checked={sw.isOn}
-                      onClick={sw.onToggle}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        sw.onToggle();
+                      }}
                       className={`ios-toggle-switch ${sw.isOn ? 'checked' : ''}`}
                       title={`${sw.name}: ${sw.isOn ? 'Desligar' : 'Ligar'}`}
                     >

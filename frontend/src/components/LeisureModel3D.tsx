@@ -59,9 +59,9 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
   });
 
   // Extração dos status reais dos dispositivos Sonoff / Tuya
-  const isStairOn = Boolean(devicesData['1000e4a34e']?.switch);
-  const isArandelaOn = Boolean(devicesData['1000e4bd27']?.switch);
-  const isGourmetOn = Boolean(devicesData['1000e4a34c']?.switch);
+  const isStairOn = Boolean(devicesData['1000e4a34e']?.switch ?? devicesData['1000e4a34e']?.switch_1);
+  const isArandelaOn = Boolean(devicesData['1000e4bd27']?.switch ?? devicesData['1000e4bd27']?.switch_1);
+  const isGourmetOn = Boolean(devicesData['1000e4a34c']?.switch ?? devicesData['1000e4a34c']?.switch_1);
   const isPoolLightOn = Boolean(devicesData['1000e8f9b1']?.switch_2);
   const isWaterfallOn = Boolean(devicesData['1000e8f9b1']?.switch_1);
   const isHydroOn = Boolean(devicesData['1000e8f9b1']?.switch_3);

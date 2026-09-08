@@ -42,7 +42,7 @@ export function App() {
       const saved = localStorage.getItem('domus_device_config');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.devices && Array.isArray(parsed.devices) && parsed.devices.length > 0) {
+        if (parsed.devices && Array.isArray(parsed.devices) && parsed.devices.some((d: any) => d.id === '1000e4a34e' || d.key === '1000e4a34e')) {
           return parsed.devices;
         }
       }
@@ -55,7 +55,7 @@ export function App() {
       const saved = localStorage.getItem('domus_device_config');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.device_rooms) return { ...DEFAULT_DEVICE_ROOMS, ...parsed.device_rooms };
+        if (parsed.device_rooms && parsed.device_rooms['1000e4a34e']) return { ...DEFAULT_DEVICE_ROOMS, ...parsed.device_rooms };
       }
     } catch {}
     return DEFAULT_DEVICE_ROOMS;
@@ -66,7 +66,7 @@ export function App() {
       const saved = localStorage.getItem('domus_device_config');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.channel_names) return { ...DEFAULT_CHANNEL_NAMES, ...parsed.channel_names };
+        if (parsed.channel_names && parsed.channel_names['1000e8f9b1']) return { ...DEFAULT_CHANNEL_NAMES, ...parsed.channel_names };
       }
     } catch {}
     return DEFAULT_CHANNEL_NAMES;
@@ -80,7 +80,7 @@ export function App() {
         if (parsed.hidden_channels) return parsed.hidden_channels;
       }
     } catch {}
-    return { led_closet: ['switch_inching', 'switch_type'] };
+    return {};
   });
 
   const [channelRooms, setChannelRooms] = useState<Record<string, Record<string, string>>>(() => {
@@ -99,7 +99,12 @@ export function App() {
     let localBackup: any = null;
     try {
       const saved = localStorage.getItem('domus_device_config');
-      if (saved) localBackup = JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.device_rooms && parsed.device_rooms['1000e4a34e']) {
+          localBackup = parsed;
+        }
+      }
     } catch {}
 
     const res = await fetchDeviceConfig();

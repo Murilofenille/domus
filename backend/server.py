@@ -127,10 +127,15 @@ async def get_status(device_id: Optional[str] = None):
 async def send_command(req: CommandRequest):
     # Atualização otimista imediata no cache de memória
     with cache_lock:
-        for k in [req.device_id]:
-            if k in devices_cache and "switches" in devices_cache[k]:
-                devices_cache[k]["switches"][req.code] = req.value
-                devices_cache[k]["updated_at"] = time.time()
+        for k, v in list(devices_cache.items()):
+            if k == req.device_id or (isinstance(v, dict) and v.get("device_id") == req.device_id):
+                if isinstance(v, dict) and "switches" in v:
+                    v["switches"][req.code] = req.value
+                    if req.code == "switch":
+                        v["switches"]["switch_1"] = req.value
+                    elif req.code == "switch_1":
+                        v["switches"]["switch"] = req.value
+                    v["updated_at"] = time.time()
 
     # Roteamento Inteligente: eWeLink vs Tuya
     is_ewelink = (
@@ -178,70 +183,35 @@ class DeviceConfigPayload(BaseModel):
     channel_rooms: Dict[str, Dict[str, str]] = {}
 
 DEFAULT_DEVICE_ROOMS = {
-    "quarto_murilo": "bedroom-01",
-    "escritorio_murilo": "bedroom-01",
-    "sala": "living",
-    "cozinha": "gourmet",
-    "lavanderia": "laundry",
-    "quarto_marina": "bedroom-02",
-    "tomada_marina": "bedroom-02",
-    "quarto_alfeo": "suite",
-    "tomada_alfeo": "suite",
-    "banheiro_alfeo": "bath-suite",
-    "banheiro_social": "bath-social",
-    "suite_master": "master",
-    "banheiro_master": "bath-master",
-    "closet": "closet",
-    "led_closet": "closet",
-    "corredor_principal": "hall",
-    "corredor_suite": "rear-hall",
-    "corredor_claraboia": "skylight-east",
+    "1000e4a34e": "escada",
+    "1000e4bd27": "piscina",
+    "1000e4a34c": "gourmet",
+    "1000e8f9b1": "piscina",
+    "termostato": "piscina",
+    "temperatura_piscina": "piscina",
 }
 
 DEFAULT_CHANNEL_NAMES = {
-    "sala": {
-        "switch_1": "Luz Sala TV",
-        "switch_2": "Spots Sala",
-        "switch_3": "Mesa de Jantar",
-        "switch_4": "Lustre Jantar",
-        "switch_5": "Cortineiro Sala",
-        "switch_6": "Sanca de Gesso",
-        "switch_7": "Luz Hall Entrada",
-        "switch_8": "Spots Parede"
+    "1000e8f9b1": {
+        "switch_1": "Cascata",
+        "switch_2": "Iluminação Piscina",
+        "switch_3": "Hidromassagem",
+        "switch_4": "Bomba Filtro"
     },
-    "quarto_murilo": {
-        "switch_1": "Luz Central Quarto",
-        "switch_2": "Spots Cabeceira",
-        "switch_3": "Fita LED Sanca"
+    "1000e4a34e": {
+        "switch": "Luz Escada",
+        "switch_1": "Luz Escada"
     },
-    "escritorio_murilo": {
-        "switch_1": "Luz Mesa Trabalho",
-        "switch_2": "Tomada Monitor/PC"
+    "1000e4bd27": {
+        "switch": "Arandela Piscina",
+        "switch_1": "Arandela Piscina"
     },
-    "cozinha": {
-        "switch_1": "Ilha Central",
-        "switch_2": "Bancada Pia",
-        "switch_3": "Armários Superiores"
+    "1000e4a34c": {
+        "switch": "Iluminação Salão",
+        "switch_1": "Iluminação Salão"
     },
-    "quarto_marina": {
-        "switch_1": "Luz Central",
-        "switch_2": "Spots Cama"
-    },
-    "closet": {
-        "switch_1": "Luz Geral Closet",
-        "switch_2": "Spots Espelho"
-    },
-    "led_closet": {
-        "switch_1": "Barra LED Guarda-Roupa"
-    },
-    "lavanderia": {
-        "switch_1": "Luz Principal Lavanderia"
-    },
-    "corredor_principal": {
-        "switch_1": "Luz Corredor Central"
-    },
-    "corredor_suite": {
-        "switch_1": "Luz Corredor Suíte Master"
+    "termostato": {
+        "switch": "Aquecimento Piscina"
     }
 }
 

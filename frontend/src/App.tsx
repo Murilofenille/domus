@@ -162,7 +162,7 @@ export function App() {
     }
   }, []);
 
-  // Sincronização periódica com todos os dispositivos da casa
+  // Sincronização periódica com todos os dispositivos da Área de Lazer
   const syncWithTuya = useCallback(async () => {
     const data = await fetchDeviceStatus();
     if (data && data.online) {
@@ -171,7 +171,7 @@ export function App() {
         const nextDevicesData: Record<string, Record<string, boolean | number>> = {};
         const nextLightStates: Record<string, boolean> = {};
 
-        // Atualizar cada dispositivo Tuya no cache
+        // Atualizar cada dispositivo Tuya / eWeLink no cache
         Object.entries(data.devices).forEach(([devKey, dev]) => {
           nextDevicesData[devKey] = dev.switches || {};
         });
@@ -182,8 +182,6 @@ export function App() {
             const dev = data.devices![pin.deviceKey];
             const dp = pin.dpCode || 'switch_1';
             nextLightStates[pin.id] = !!dev.switches?.[dp];
-          } else {
-            nextLightStates[pin.id] = lightStates[pin.id] || false;
           }
         });
 
@@ -209,7 +207,7 @@ export function App() {
     } else {
       setIsOnline(false);
     }
-  }, [lightStates]);
+  }, []);
 
   // Polling periódico (a cada 3.5 segundos, pausando se a tela do tablet apagar)
   useEffect(() => {
@@ -478,16 +476,18 @@ export function App() {
             onNavigateHome={() => setActiveTab('dashboard')}
           />
 
-          {/* Painel Lateral com Controles Dinâmicos */}
-          <SidePanel
-            selectedRoom={selectedRoom}
-            onClose={() => setSelectedRoom(null)}
-            deviceSwitches={currentRoomSwitches}
-            customChannelNames={channelNames[currentRoomKey] || {}}
-            roomDevices={currentRoomDevices}
-            onToggleSwitch={handleToggleDeviceSwitch}
-            isSyncing={isSyncing}
-          />
+          {/* Painel Lateral com Controles Dinâmicos (Apenas se houver cômodo selecionado) */}
+          {selectedRoom && (
+            <SidePanel
+              selectedRoom={selectedRoom}
+              onClose={() => setSelectedRoom(null)}
+              deviceSwitches={currentRoomSwitches}
+              customChannelNames={channelNames[currentRoomKey] || {}}
+              roomDevices={currentRoomDevices}
+              onToggleSwitch={handleToggleDeviceSwitch}
+              isSyncing={isSyncing}
+            />
+          )}
 
           {/* HUD Inferior Esquerdo: Spotify Player */}
           <div className="bottom-left-hud">

@@ -37,24 +37,6 @@ app.add_middleware(
 )
 
 DEVICES = {
-    "quarto_murilo": {"name": "Quarto Murilo", "id": "7173100234ab95105538"},
-    "escritorio_murilo": {"name": "Escritório Murilo", "id": "eba0bc9062cb902519bv8a"},
-    "sala": {"name": "Interruptor Sala", "id": "eb4363d2fae69d1b3ak5lg"},
-    "cozinha": {"name": "Cozinha", "id": "eb0253512b47c620f1b3tg"},
-    "lavanderia": {"name": "Lavanderia", "id": "eb06af9cdbe3a70513uvmv"},
-    "quarto_marina": {"name": "Quarto Marina", "id": "0076231634ab9510916c"},
-    "tomada_marina": {"name": "Tomada Marina", "id": "eba520de38c7edcd5cdesn"},
-    "quarto_alfeo": {"name": "Quarto Alfeo", "id": "0076231634ab9510ba04"},
-    "tomada_alfeo": {"name": "Tomada Alfeo", "id": "eb2bf7de07a19292ac2kf4"},
-    "banheiro_alfeo": {"name": "Banheiro Alfeo", "id": "eb4bb2c6b85ca80c08xen2"},
-    "banheiro_social": {"name": "Banheiro Social", "id": "ebea951fa1e1900c21l4op"},
-    "suite_master": {"name": "Suíte Master", "id": "eb7b83c1dcb03d24231db5"},
-    "banheiro_master": {"name": "Banheiro Master", "id": "eb359369a7c7cd5cacz5cb"},
-    "closet": {"name": "Closet", "id": "0076231634ab951d1684"},
-    "led_closet": {"name": "Led Guarda Roupa", "id": "eb3a48b14417d7cd46g13x"},
-    "corredor_principal": {"name": "Corredor Principal", "id": "7753207334ab951d4101"},
-    "corredor_suite": {"name": "Corredor Suíte", "id": "eb7ec51b1a94acaf7ffjqx"},
-    "corredor_claraboia": {"name": "Corredor Claraboia", "id": "ebbfb1b732983a19det4ng"},
     "termostato": {"name": "Termostato", "id": "ebb44c0ed17053d7ba7c57"},
     "temperatura_piscina": {"name": "Temperatura Piscina", "id": "ebcefc3209dad58d10wpgv"},
 }
@@ -86,34 +68,31 @@ def fetch_device(key: str, device_id: str):
 
 # Worker de sincronização contínua em segundo plano
 def background_poller():
-    last_ewelink_poll = 0.0
     while True:
-        # Polling dos dispositivos Tuya
+        # Polling do termostato Tuya
         for key, info in DEVICES.items():
             fetch_device(key, info["id"])
-            time.sleep(0.12) # Pausa suave para respeitar rate-limit da Tuya
+            time.sleep(0.1)
 
-        # Polling dos dispositivos eWeLink da Área de Lazer (a cada 3.5 segundos)
-        now = time.time()
-        if ewelink_instance.is_configured and (now - last_ewelink_poll > 3.5):
+        # Polling dos dispositivos eWeLink da Área de Lazer (a cada 2.5 segundos)
+        if ewelink_instance.is_configured:
             try:
                 ew_devs = ewelink_instance.fetch_devices()
-                with cache_lock:
-                    for dev_k, dev_val in ew_devs.items():
-                        devices_cache[dev_k] = dev_val
-                last_ewelink_poll = now
+                if ew_devs:
+                    with cache_lock:
+                        for dev_k, dev_val in ew_devs.items():
+                            devices_cache[dev_k] = dev_val
             except Exception as ew_err:
-                print(f"[eWeLink] Erro no polling de segundo plano: {ew_err}")
+                print(f"[eWeLink] Erro no polling: {ew_err}")
 
-        time.sleep(1.5)
+        time.sleep(2.0)
 
 # Iniciar thread em background
 poller_thread = threading.Thread(target=background_poller, daemon=True)
 poller_thread.start()
 
-# Preencher estado imediato dos dispositivos
-fetch_device("quarto_murilo", "7173100234ab95105538")
-fetch_device("sala", "eb4363d2fae69d1b3ak5lg")
+# Preencher estado imediato inicial
+fetch_device("termostato", "ebb44c0ed17053d7ba7c57")
 if ewelink_instance.is_configured:
     try:
         init_ew = ewelink_instance.fetch_devices()

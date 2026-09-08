@@ -348,22 +348,21 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
   }, []);
 
   return (
-    <div className="relative w-full h-full overflow-hidden select-none bg-[#0c1017]" ref={containerRef}>
+    <div className="leisure-3d-wrapper" ref={containerRef}>
       {/* Canvas 3D */}
-      <canvas ref={canvasRef} className="w-full h-full block cursor-grab active:cursor-grabbing" />
+      <canvas ref={canvasRef} className="leisure-canvas" />
 
       {/* Loading Overlay */}
       {isLoading && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0c1017]/90 backdrop-blur-md text-white">
-          <div className="relative w-20 h-20 mb-4 flex items-center justify-center">
-            <div className="absolute inset-0 rounded-full border-2 border-amber-500/20 animate-ping" />
-            <div className="w-16 h-16 rounded-full border-4 border-amber-500/30 border-t-amber-400 animate-spin" />
-            <Sparkles className="w-6 h-6 text-amber-400 absolute" />
+        <div className="leisure-loader-overlay">
+          <div className="leisure-loader-spinner">
+            <div className="leisure-loader-ring" />
+            <Sparkles size={24} style={{ position: 'absolute', color: '#F59E0B' }} />
           </div>
-          <span className="text-base font-medium tracking-wide text-zinc-200">
+          <span style={{ fontSize: '15px', fontWeight: 600, letterSpacing: '0.02em', color: '#E2E8F0' }}>
             Carregando Maquete 3D da Área de Lazer...
           </span>
-          <span className="text-xs text-amber-400/80 mt-1 font-mono">
+          <span style={{ fontSize: '12px', color: '#F59E0B', marginTop: '6px', fontFamily: 'monospace' }}>
             {loadProgress > 0 ? `${loadProgress}%` : 'Carregando acabamentos...'}
           </span>
         </div>
@@ -371,22 +370,18 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
 
       {/* Pins Interativos de Automação Flutuantes */}
       {!isLoading && (
-        <div className="absolute inset-0 pointer-events-none z-20">
+        <div className="leisure-pins-layer">
           {/* Pin Escada */}
           {pinPositions.stairs.visible && (
             <div
-              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto transition-transform duration-75 hover:scale-110 cursor-pointer"
+              className="leisure-pin"
               style={{ left: `${pinPositions.stairs.x}px`, top: `${pinPositions.stairs.y}px` }}
               onClick={() => onToggleDeviceSwitch('1000e4a34e', 'switch', isStairOn)}
             >
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-md border shadow-lg transition-all ${
-                isStairOn
-                  ? 'bg-amber-500/90 text-black border-amber-300 font-semibold shadow-amber-500/30 ring-2 ring-amber-400/50'
-                  : 'bg-black/70 text-zinc-300 border-white/10 hover:border-white/30'
-              }`}>
-                <Lightbulb className={`w-3.5 h-3.5 ${isStairOn ? 'text-black' : 'text-zinc-400'}`} />
-                <span className="text-xs tracking-tight">Escada</span>
-                <span className={`w-1.5 h-1.5 rounded-full ${isStairOn ? 'bg-black animate-pulse' : 'bg-zinc-500'}`} />
+              <div className={`leisure-pin-badge ${isStairOn ? 'active' : ''}`}>
+                <Lightbulb size={14} color={isStairOn ? '#000000' : '#94A3B8'} />
+                <span>Escada</span>
+                <span className={`leisure-pin-dot ${isStairOn ? 'active' : ''}`} />
               </div>
             </div>
           )}
@@ -394,18 +389,14 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
           {/* Pin Arandelas Piscina */}
           {pinPositions.arandelas.visible && (
             <div
-              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto transition-transform duration-75 hover:scale-110 cursor-pointer"
+              className="leisure-pin"
               style={{ left: `${pinPositions.arandelas.x}px`, top: `${pinPositions.arandelas.y}px` }}
               onClick={() => onToggleDeviceSwitch('1000e4bd27', 'switch', isArandelaOn)}
             >
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-md border shadow-lg transition-all ${
-                isArandelaOn
-                  ? 'bg-amber-500/90 text-black border-amber-300 font-semibold shadow-amber-500/30 ring-2 ring-amber-400/50'
-                  : 'bg-black/70 text-zinc-300 border-white/10 hover:border-white/30'
-              }`}>
-                <Flame className={`w-3.5 h-3.5 ${isArandelaOn ? 'text-black' : 'text-zinc-400'}`} />
-                <span className="text-xs tracking-tight">Arandelas</span>
-                <span className={`w-1.5 h-1.5 rounded-full ${isArandelaOn ? 'bg-black animate-pulse' : 'bg-zinc-500'}`} />
+              <div className={`leisure-pin-badge ${isArandelaOn ? 'active' : ''}`}>
+                <Flame size={14} color={isArandelaOn ? '#000000' : '#94A3B8'} />
+                <span>Arandelas</span>
+                <span className={`leisure-pin-dot ${isArandelaOn ? 'active' : ''}`} />
               </div>
             </div>
           )}
@@ -413,18 +404,14 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
           {/* Pin Iluminação Salão / Gourmet */}
           {pinPositions.gourmet.visible && (
             <div
-              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto transition-transform duration-75 hover:scale-110 cursor-pointer"
+              className="leisure-pin"
               style={{ left: `${pinPositions.gourmet.x}px`, top: `${pinPositions.gourmet.y}px` }}
               onClick={() => onToggleDeviceSwitch('1000e4a34c', 'switch', isGourmetOn)}
             >
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-md border shadow-lg transition-all ${
-                isGourmetOn
-                  ? 'bg-amber-500/90 text-black border-amber-300 font-semibold shadow-amber-500/30 ring-2 ring-amber-400/50'
-                  : 'bg-black/70 text-zinc-300 border-white/10 hover:border-white/30'
-              }`}>
-                <Lightbulb className={`w-3.5 h-3.5 ${isGourmetOn ? 'text-black' : 'text-zinc-400'}`} />
-                <span className="text-xs tracking-tight">Salão / Gourmet</span>
-                <span className={`w-1.5 h-1.5 rounded-full ${isGourmetOn ? 'bg-black animate-pulse' : 'bg-zinc-500'}`} />
+              <div className={`leisure-pin-badge ${isGourmetOn ? 'active' : ''}`}>
+                <Lightbulb size={14} color={isGourmetOn ? '#000000' : '#94A3B8'} />
+                <span>Salão / Gourmet</span>
+                <span className={`leisure-pin-dot ${isGourmetOn ? 'active' : ''}`} />
               </div>
             </div>
           )}
@@ -432,64 +419,56 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
           {/* Pin Piscina & Deck */}
           {pinPositions.pool.visible && (
             <div
-              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto transition-transform duration-75 hover:scale-105"
+              className="leisure-pool-widget"
               style={{ left: `${pinPositions.pool.x}px`, top: `${pinPositions.pool.y}px` }}
             >
-              <div className="flex flex-col items-center gap-1.5">
-                {/* Badge de Temperatura da Água */}
-                {poolTemperature !== undefined && (
-                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 text-[11px] font-semibold backdrop-blur-md shadow-md">
-                    <Thermometer className="w-3 h-3 text-cyan-400" />
-                    <span>{poolTemperature}°C</span>
-                  </div>
-                )}
-
-                {/* Controles Rápidos da Piscina */}
-                <div className="flex items-center gap-1 bg-black/80 p-1 rounded-full border border-white/15 backdrop-blur-md shadow-xl">
-                  {/* Luz da Piscina */}
-                  <button
-                    onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_2', isPoolLightOn)}
-                    title="Luz da Piscina"
-                    className={`p-1.5 rounded-full transition-all ${
-                      isPoolLightOn ? 'bg-cyan-500 text-black font-bold shadow-md shadow-cyan-500/50' : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <Lightbulb className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Cascata */}
-                  <button
-                    onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_1', isWaterfallOn)}
-                    title="Cascata"
-                    className={`p-1.5 rounded-full transition-all ${
-                      isWaterfallOn ? 'bg-blue-500 text-white font-bold shadow-md shadow-blue-500/50' : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <Droplets className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Hidro */}
-                  <button
-                    onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_3', isHydroOn)}
-                    title="Hidromassagem"
-                    className={`p-1.5 rounded-full transition-all ${
-                      isHydroOn ? 'bg-indigo-500 text-white font-bold shadow-md shadow-indigo-500/50' : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Bomba Filtro */}
-                  <button
-                    onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_4', isPumpOn)}
-                    title="Bomba Filtro"
-                    className={`p-1.5 rounded-full transition-all ${
-                      isPumpOn ? 'bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/50' : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <RotateCw className={`w-3.5 h-3.5 ${isPumpOn ? 'animate-spin' : ''}`} />
-                  </button>
+              {poolTemperature !== undefined && (
+                <div className="leisure-pool-temp">
+                  <Thermometer size={13} color="#22D3EE" />
+                  <span>{poolTemperature}°C</span>
                 </div>
+              )}
+
+              <div className="leisure-pool-controls">
+                {/* Luz da Piscina */}
+                <button
+                  type="button"
+                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_2', isPoolLightOn)}
+                  title="Luz da Piscina"
+                  className={`leisure-pool-btn ${isPoolLightOn ? 'active-light' : ''}`}
+                >
+                  <Lightbulb size={15} />
+                </button>
+
+                {/* Cascata */}
+                <button
+                  type="button"
+                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_1', isWaterfallOn)}
+                  title="Cascata"
+                  className={`leisure-pool-btn ${isWaterfallOn ? 'active-water' : ''}`}
+                >
+                  <Droplets size={15} />
+                </button>
+
+                {/* Hidro */}
+                <button
+                  type="button"
+                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_3', isHydroOn)}
+                  title="Hidromassagem"
+                  className={`leisure-pool-btn ${isHydroOn ? 'active-hydro' : ''}`}
+                >
+                  <Sparkles size={15} />
+                </button>
+
+                {/* Bomba Filtro */}
+                <button
+                  type="button"
+                  onClick={() => onToggleDeviceSwitch('1000e8f9b1', 'switch_4', isPumpOn)}
+                  title="Bomba Filtro"
+                  className={`leisure-pool-btn ${isPumpOn ? 'active-pump' : ''}`}
+                >
+                  <RotateCw size={14} className={isPumpOn ? 'animate-spin' : ''} />
+                </button>
               </div>
             </div>
           )}
@@ -499,76 +478,63 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
       {/* Botão de Retorno ao Início no canto superior esquerdo */}
       {onNavigateHome && (
         <button
+          type="button"
           onClick={onNavigateHome}
-          className="absolute top-4 left-4 z-30 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-black/60 backdrop-blur-xl border border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 transition-colors text-xs font-medium shadow-xl"
+          className="leisure-back-btn"
+          title="Voltar para a Tela Inicial"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
+          <ArrowLeft size={14} />
           <span>Início</span>
         </button>
       )}
 
       {/* Barra Flutuante Superior de Presets de Câmera */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 p-1.5 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/10 shadow-2xl">
-        <button
-          onClick={() => setViewPreset('geral')}
-          className="px-3 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 transition-colors"
-        >
+      <div className="leisure-camera-bar">
+        <button type="button" onClick={() => setViewPreset('geral')} className="leisure-cam-btn">
           Visão Geral
         </button>
-        <button
-          onClick={() => setViewPreset('piscina')}
-          className="px-3 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 transition-colors"
-        >
+        <button type="button" onClick={() => setViewPreset('piscina')} className="leisure-cam-btn">
           Piscina
         </button>
-        <button
-          onClick={() => setViewPreset('gourmet')}
-          className="px-3 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 transition-colors"
-        >
+        <button type="button" onClick={() => setViewPreset('gourmet')} className="leisure-cam-btn">
           Gourmet
         </button>
-        <button
-          onClick={() => setViewPreset('topo')}
-          className="px-3 py-1.5 rounded-xl text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 transition-colors"
-        >
+        <button type="button" onClick={() => setViewPreset('topo')} className="leisure-cam-btn">
           Planta Topo
         </button>
       </div>
 
       {/* Barra Flutuante Inferior de Ferramentas de Inspeção */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 p-1.5 rounded-2xl bg-black/70 backdrop-blur-xl border border-white/15 shadow-2xl">
+      <div className="leisure-tools-bar">
         {/* Toggle 2º Andar */}
         <button
+          type="button"
           onClick={toggleUpper}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-            showUpper ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-zinc-400 hover:text-white hover:bg-white/5'
-          }`}
+          className={`leisure-tool-btn ${showUpper ? 'active-amber' : ''}`}
         >
-          <Layers className="w-3.5 h-3.5" />
+          <Layers size={14} />
           <span>{showUpper ? 'Ocultar 2º Andar' : 'Mostrar 2º Andar'}</span>
         </button>
 
         {/* Rebaixar Muros */}
         <button
+          type="button"
           onClick={toggleWalls}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-            wallsLowered ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' : 'text-zinc-400 hover:text-white hover:bg-white/5'
-          }`}
+          className={`leisure-tool-btn ${wallsLowered ? 'active-blue' : ''}`}
         >
-          {wallsLowered ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          {wallsLowered ? <EyeOff size={14} /> : <Eye size={14} />}
           <span>{wallsLowered ? 'Restaurar Muros' : 'Rebaixar Muros'}</span>
         </button>
 
-        <div className="w-[1px] h-4 bg-white/10" />
+        <div className="leisure-tool-sep" />
 
         {/* Toggle Dia / Noite */}
         <button
+          type="button"
           onClick={toggleNight}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-            isNight ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-          }`}
+          className={`leisure-tool-btn ${isNight ? 'active-indigo' : 'active-amber'}`}
         >
-          {isNight ? <Moon className="w-3.5 h-3.5 text-indigo-400" /> : <Sun className="w-3.5 h-3.5 text-amber-400" />}
+          {isNight ? <Moon size={14} color="#818CF8" /> : <Sun size={14} color="#FBBF24" />}
           <span>{isNight ? 'Modo Noturno' : 'Modo Diurno'}</span>
         </button>
       </div>

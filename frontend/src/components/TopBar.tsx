@@ -91,7 +91,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       <div className="topbar-center">
         <div className={`status-pill ${isOnline ? 'online' : 'offline'}`}>
           <Wifi size={14} className={isOnline ? 'animate-pulse' : ''} />
-          <span>{isOnline ? 'TUYA CLOUD CONECTADO' : 'CONECTANDO...'}</span>
+          <span>{isOnline ? 'ONLINE' : 'CONECTANDO...'}</span>
         </div>
 
         <div className="light-counter-pill">

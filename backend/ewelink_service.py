@@ -41,6 +41,7 @@ class EwelinkClient:
         self.region: str = "us"
         self.last_login_time: float = 0
         self.cached_devices_meta: Dict[str, Any] = {}
+        self.session = requests.Session()
 
     @property
     def is_configured(self) -> bool:
@@ -119,14 +120,14 @@ class EwelinkClient:
         url = f"{self.host}/v2/device/thing?num=0"
 
         try:
-            res = requests.get(url, headers=headers, timeout=8)
+            res = self.session.get(url, headers=headers, timeout=8)
             data = res.json()
 
             # Se o token expirou (ex: erro 401 ou 403), força novo login
             if data.get("error") in [401, 403, 10004]:
                 if self.login(force=True):
                     headers["Authorization"] = f"Bearer {self.access_token}"
-                    res = requests.get(url, headers=headers, timeout=8)
+                    res = self.session.get(url, headers=headers, timeout=8)
                     data = res.json()
 
             if data.get("error") != 0:
@@ -147,16 +148,20 @@ class EwelinkClient:
                 params = item_data.get("params", {})
                 uiid = item_data.get("extra", {}).get("uiid")
 
-                # Normalizar status dos switches para "switch_1", "switch_2", etc.
+                # Normalizar status dos switches para "switch_1", "switch_2" e "switch"
                 switches: Dict[str, bool] = {}
                 if "switch" in params:
                     # Interruptor de canal único (ex: Sonoff Mini, Basic, TX 1C)
-                    switches["switch_1"] = (params.get("switch") == "on")
+                    val = (params.get("switch") == "on")
+                    switches["switch"] = val
+                    switches["switch_1"] = val
                 elif "switches" in params:
                     # Interruptor multi-canal (ex: Sonoff 4CH, TX 2C/3C)
                     for sw in params.get("switches", []):
                         outlet = sw.get("outlet", 0) + 1
                         switches[f"switch_{outlet}"] = (sw.get("switch") == "on")
+                    if "switch_1" in switches:
+                        switches["switch"] = switches["switch_1"]
 
                 dev_dict = {
                     "device_id": dev_id,
@@ -199,13 +204,13 @@ class EwelinkClient:
         if code.startswith("switch_"):
             try:
                 num = int(code.split("_")[1])
-                outlet_index = num - 1
+                outlet_index = max(0, num - 1)
             except Exception:
                 outlet_index = 0
 
         cached_meta = self.cached_devices_meta.get(device_id, {})
         params_meta = cached_meta.get("params", {})
-        if "switches" in params_meta or outlet_index > 0:
+        if "switches" in params_meta or outlet_index > 0 or device_id == "1000e8f9b1":
             is_multi = True
 
         str_val = "on" if value else "off"
@@ -227,7 +232,7 @@ class EwelinkClient:
             }
 
         try:
-            res = requests.post(url, headers=headers, json=body, timeout=8)
+            res = self.session.post(url, headers=headers, json=body, timeout=8)
             resp = res.json()
             if resp.get("error") == 0:
                 return True

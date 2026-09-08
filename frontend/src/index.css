@@ -2414,6 +2414,41 @@ html, body, #root {
 }
 
 
+/* --- ALTERNADOR 2D / 3D NA TOPBAR --- */
+.viewmode-toggle-pill {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.viewmode-tab {
+  border: none;
+  background: transparent;
+  color: #94A3B8;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  letter-spacing: 0.04em;
+}
+
+.viewmode-tab:hover {
+  color: #FFFFFF;
+}
+
+.viewmode-tab.active {
+  background: #2563EB;
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+}
+
 /* --- BOTÃO DE AVALIAÇÃO NA TOPBAR --- */
 .topbar-review-btn {
   display: flex;

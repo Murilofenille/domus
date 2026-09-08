@@ -5,6 +5,8 @@ interface TopBarProps {
   isOnline: boolean;
   activeLightsCount: number;
   totalLightsCount: number;
+  viewMode: '3D' | '2D';
+  onToggleViewMode: () => void;
   onToggleAll: () => void;
   onOpenSettings: () => void;
   onOpenReview?: () => void;
@@ -14,6 +16,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   isOnline,
   activeLightsCount,
   totalLightsCount,
+  viewMode,
+  onToggleViewMode,
   onToggleAll,
   onOpenSettings,
   onOpenReview
@@ -70,6 +74,24 @@ export const TopBar: React.FC<TopBarProps> = ({
         <div className="light-counter-pill">
           <span className="counter-dot" style={{ background: activeLightsCount > 0 ? '#FFB703' : '#94A3B8' }} />
           <span>{activeLightsCount} de {totalLightsCount} luzes acesas</span>
+        </div>
+
+        {/* Alternador de Visualização 2D / 3D */}
+        <div className="viewmode-toggle-pill" title="Alternar entre Planta Baixa 2D e Maquete 3D">
+          <button
+            type="button"
+            className={`viewmode-tab ${viewMode === '2D' ? 'active' : ''}`}
+            onClick={() => viewMode !== '2D' && onToggleViewMode()}
+          >
+            2D
+          </button>
+          <button
+            type="button"
+            className={`viewmode-tab ${viewMode === '3D' ? 'active' : ''}`}
+            onClick={() => viewMode !== '3D' && onToggleViewMode()}
+          >
+            3D
+          </button>
         </div>
       </div>
 

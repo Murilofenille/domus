@@ -308,7 +308,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-garage",
     roomId: "garage",
     name: "Garagem",
-    position: [5.00, 1.65, 21.66],
+    position: [5.00, 0.35, 21.66],
     deviceId: "",
     deviceKey: "garagem",
     dpCode: "switch_1"
@@ -317,7 +317,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-cozinha",
     roomId: "gourmet",
     name: "Cozinha",
-    position: [3.73, 1.65, 16.01],
+    position: [3.73, 0.35, 16.01],
     deviceId: "eb0253512b47c620f1b3tg",
     deviceKey: "cozinha",
     dpCode: "switch_1"
@@ -326,7 +326,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-jantar",
     roomId: "dining",
     name: "Mesa de Jantar",
-    position: [7.74, 1.65, 16.51],
+    position: [7.74, 0.35, 16.51],
     deviceId: "eb4363d2fae69d1b3ak5lg",
     deviceKey: "sala",
     dpCode: "switch_3"
@@ -335,7 +335,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-sala",
     roomId: "living",
     name: "Sala de TV",
-    position: [7.74, 1.65, 13.00],
+    position: [7.74, 0.35, 13.00],
     deviceId: "eb4363d2fae69d1b3ak5lg",
     deviceKey: "sala",
     dpCode: "switch_1"
@@ -344,7 +344,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-lavanderia",
     roomId: "laundry",
     name: "Lavanderia",
-    position: [0.99, 1.65, 13.00],
+    position: [0.99, 0.35, 13.00],
     deviceId: "eb06af9cdbe3a70513uvmv",
     deviceKey: "lavanderia",
     dpCode: "switch_1"
@@ -353,7 +353,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-suite",
     roomId: "suite",
     name: "Suíte Visitas",
-    position: [3.73, 1.65, 12.19],
+    position: [3.73, 0.35, 12.19],
     deviceId: "0076231634ab9510ba04",
     deviceKey: "quarto_alfeo",
     dpCode: "switch_1"
@@ -362,7 +362,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-bath-visitas",
     roomId: "bath-suite",
     name: "Banheiro Visitas",
-    position: [3.73, 1.65, 9.25],
+    position: [3.73, 0.35, 9.25],
     deviceId: "eb4bb2c6b85ca80c08xen2",
     deviceKey: "banheiro_alfeo",
     dpCode: "switch_1"
@@ -372,7 +372,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-quarto-murilo",
     roomId: "bedroom-01",
     name: "Quarto Murilo",
-    position: [4.20, 1.65, 7.20],
+    position: [4.20, 0.35, 7.20],
     deviceId: "7173100234ab95105538",
     deviceKey: "quarto_murilo",
     dpCode: "switch_1"
@@ -382,7 +382,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-escritorio-murilo",
     roomId: "bedroom-01",
     name: "Escritório Murilo",
-    position: [2.65, 1.65, 5.35],
+    position: [2.65, 0.35, 5.35],
     deviceId: "eba0bc9062cb902519bv8a",
     deviceKey: "escritorio_murilo",
     dpCode: "switch_1"
@@ -391,7 +391,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-corredor",
     roomId: "hall",
     name: "Corredor",
-    position: [6.01, 1.65, 8.05],
+    position: [6.01, 0.35, 8.05],
     deviceId: "7753207334ab951d4101",
     deviceKey: "corredor_principal",
     dpCode: "switch_1"
@@ -400,7 +400,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-bath-social",
     roomId: "bath-social",
     name: "Banheiro Social",
-    position: [8.46, 1.65, 11.00],
+    position: [8.46, 0.35, 11.00],
     deviceId: "ebea951fa1e1900c21l4op",
     deviceKey: "banheiro_social",
     dpCode: "switch_1"
@@ -409,7 +409,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-claraboia",
     roomId: "skylight-east",
     name: "Claraboia",
-    position: [8.27, 1.65, 9.25],
+    position: [8.27, 0.35, 9.25],
     deviceId: "ebbfb1b732983a19det4ng",
     deviceKey: "corredor_claraboia",
     dpCode: "switch_1"
@@ -418,7 +418,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-quarto-marina",
     roomId: "bedroom-02",
     name: "Quarto Marina",
-    position: [8.27, 1.65, 6.29],
+    position: [8.27, 0.35, 6.29],
     deviceId: "0076231634ab9510916c",
     deviceKey: "quarto_marina",
     dpCode: "switch_1"
@@ -427,7 +427,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-corredor-suite",
     roomId: "rear-hall",
     name: "Corredor Suíte",
-    position: [3.94, 1.65, 3.62],
+    position: [3.94, 0.35, 3.62],
     deviceId: "eb7ec51b1a94acaf7ffjqx",
     deviceKey: "corredor_suite",
     dpCode: "switch_1"
@@ -437,7 +437,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-closet",
     roomId: "closet",
     name: "Closet",
-    position: [0.99, 1.65, 3.20],
+    position: [0.99, 0.35, 3.20],
     deviceId: "0076231634ab951d1684",
     deviceKey: "closet",
     dpCode: "switch_1"
@@ -447,7 +447,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-led-closet",
     roomId: "closet",
     name: "Led Guarda Roupa",
-    position: [0.99, 1.65, 1.20],
+    position: [0.99, 0.35, 1.20],
     deviceId: "eb3a48b14417d7cd46g13x",
     deviceKey: "led_closet",
     dpCode: "switch_1"
@@ -456,7 +456,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-bath-master",
     roomId: "bath-master",
     name: "Banheiro Master",
-    position: [2.84, 1.65, 1.49],
+    position: [2.84, 0.35, 1.49],
     deviceId: "eb359369a7c7cd5cacz5cb",
     deviceKey: "banheiro_master",
     dpCode: "switch_1"
@@ -465,7 +465,7 @@ export const automationPins: AutomationPinItem[] = [
     id: "pin-suite-master",
     roomId: "master",
     name: "Suíte Master",
-    position: [7.95, 1.65, 2.14],
+    position: [7.95, 0.35, 2.14],
     deviceId: "eb7b83c1dcb03d24231db5",
     deviceKey: "suite_master",
     dpCode: "switch_1"

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { CutawayHouse } from './components/CutawayHouse';
 import { TopBar } from './components/TopBar';
@@ -12,6 +12,52 @@ import { DEFAULT_DEVICES_LIST, DEFAULT_DEVICE_ROOMS, DEFAULT_CHANNEL_NAMES } fro
 import type { Room } from './types';
 import { fetchDeviceStatus, sendTuyaCommand, fetchDeviceConfig } from './services/api';
 import { handleSpotifyCallback } from './services/spotify';
+
+interface CameraControllerProps {
+  viewMode: '3D' | '2D';
+}
+
+function CameraController({ viewMode }: CameraControllerProps) {
+  const { camera } = useThree();
+  const controlsRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (controlsRef.current) {
+      if (viewMode === '2D') {
+        // Câmera no topo absoluto olhando para baixo (planta baixa pura)
+        camera.position.set(0, 36, 0.001);
+        camera.up.set(0, 0, -1); // Orienta planta: garagem embaixo, quartos em cima
+        controlsRef.current.target.set(0, 0, 0);
+        controlsRef.current.update();
+      } else {
+        // Modo 3D isométrico fluido
+        camera.position.set(12, 24, 25);
+        camera.up.set(0, 1, 0);
+        controlsRef.current.target.set(0, 0, 0);
+        controlsRef.current.update();
+      }
+    }
+  }, [viewMode, camera]);
+
+  return (
+    <OrbitControls
+      ref={controlsRef}
+      enablePan={true}
+      enableZoom={true}
+      enableRotate={viewMode === '3D'}
+      enableDamping={true}
+      dampingFactor={0.07}
+      rotateSpeed={0.8}
+      zoomSpeed={0.9}
+      panSpeed={0.9}
+      minDistance={6}
+      maxDistance={80}
+      minPolarAngle={viewMode === '2D' ? 0 : 0}
+      maxPolarAngle={viewMode === '2D' ? 0.001 : Math.PI / 2.1}
+      target={[0, 0, 0]}
+    />
+  );
+}
 
 export function App() {
   // Mapa de estados de iluminação da maquete 3D { [pinId]: boolean }
@@ -27,6 +73,7 @@ export function App() {
   const [isOnline, setIsOnline] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [viewMode, setViewMode] = useState<'3D' | '2D'>('3D');
 
   // Estados do Gerenciador de Dispositivos e Canais (com inicialização imediata e fallback resiliente)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -377,6 +424,8 @@ export function App() {
         isOnline={isOnline}
         activeLightsCount={activeLightsCount}
         totalLightsCount={totalLightsCount}
+        viewMode={viewMode}
+        onToggleViewMode={() => setViewMode(v => v === '3D' ? '2D' : '3D')}
         onToggleAll={handleToggleAll}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenReview={() => setIsReviewOpen(true)}
@@ -438,22 +487,11 @@ export function App() {
             onToggleLight={handleTogglePinLight}
             onSelectRoom={(room) => setSelectedRoom(room)}
             selectedRoomId={selectedRoom?.id}
+            viewMode={viewMode}
           />
 
-          {/* Controles de Câmera com Amortecimento Inercial Fluido (Damping) */}
-          <OrbitControls
-            enablePan={true}
-            enableZoom={true}
-            enableDamping={true}
-            dampingFactor={0.07}
-            rotateSpeed={0.8}
-            zoomSpeed={0.9}
-            panSpeed={0.9}
-            minDistance={8}
-            maxDistance={80}
-            maxPolarAngle={Math.PI / 2.1}
-            target={[0, 0, 0]}
-          />
+          {/* Controles de Câmera com Alternância 2D / 3D */}
+          <CameraController viewMode={viewMode} />
         </Canvas>
       </div>
 

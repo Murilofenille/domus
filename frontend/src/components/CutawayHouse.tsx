@@ -10,6 +10,7 @@ interface CutawayHouseProps {
   onSelectRoom?: (room: Room) => void;
   selectedRoomId?: string | null;
   roomActiveStates?: Record<string, boolean>;
+  viewMode?: '3D' | '2D';
 }
 
 /**
@@ -341,7 +342,8 @@ export const CutawayHouse: React.FC<CutawayHouseProps> = ({
   lightStates,
   onSelectRoom,
   selectedRoomId,
-  roomActiveStates
+  roomActiveStates,
+  viewMode = '3D'
 }) => {
   return (
     // Casa 10m x 25m centralizada na origem (0, 0, 0)
@@ -396,8 +398,8 @@ export const CutawayHouse: React.FC<CutawayHouseProps> = ({
       {/* 2. Paredes Baixas Arquitetônicas Cortadas */}
       <ArchitecturalWalls />
 
-      {/* 3. Mobília Interna Minimalista */}
-      <MinimalFurniture />
+      {/* 3. Mobília Interna Minimalista (oculta no Modo 2D Planta Pura) */}
+      {viewMode !== '2D' && <MinimalFurniture />}
 
       {/* 4. Pins Interativos de Automação Tuya (Micro-Discos Minimalistas) */}
       {automationPins.map((pin: AutomationPinItem) => {

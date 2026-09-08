@@ -320,19 +320,19 @@ export const LeisureDashboard: React.FC<LeisureDashboardProps> = ({
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  // Ícone dinâmico para o clima (tamanho aumentado para dar mais destaque ao widget)
+  // Ícone dinâmico para o clima (tamanho ajustado para formato compacto)
   const renderWeatherIcon = () => {
     const iconType = weather?.iconType || 'sunny';
     if (iconType === 'sunny') {
-      return <Sun size={84} className="weather-vector-icon sunny" />;
+      return <Sun size={54} className="weather-vector-icon sunny" />;
     }
     if (iconType === 'storm') {
-      return <CloudLightning size={84} className="weather-vector-icon storm" />;
+      return <CloudLightning size={54} className="weather-vector-icon storm" />;
     }
     if (iconType === 'cloudy') {
-      return <Cloud size={84} className="weather-vector-icon cloudy" />;
+      return <Cloud size={54} className="weather-vector-icon cloudy" />;
     }
-    return <CloudRain size={84} className="weather-vector-icon rainy" />;
+    return <CloudRain size={54} className="weather-vector-icon rainy" />;
   };
 
   const fallbackSwitches: QuickDeviceSwitch[] = [

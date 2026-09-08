@@ -326,6 +326,38 @@ export function finishScene(
     scene.add(gourmetLight);
   }
 
+  // Refletor de Jardim / Espeto iluminando o Coqueiro (acende sincronizado com as arandelas)
+  const coqueiroMesh = byId.get(12);
+  let coqueiroSpot: THREE.SpotLight | null = null;
+  let coqueiroPoint: THREE.PointLight | null = null;
+  const glowingCoqueiroLens = new THREE.MeshStandardMaterial({
+    color: '#221a12',
+    emissive: '#ffb347',
+    emissiveIntensity: 0.0,
+    roughness: 0.2
+  });
+
+  const cBox = coqueiroMesh ? new THREE.Box3().setFromObject(coqueiroMesh) : null;
+  const cCenterX = cBox ? (cBox.min.x + cBox.max.x) / 2 : 5.36;
+  const cCenterZ = cBox ? (cBox.min.z + cBox.max.z) / 2 : 0.96;
+  const cBaseY = cBox ? cBox.min.y : 0.10;
+
+  // Mini refletor/espeto de jardim no solo
+  box('Espeto de jardim base', cCenterX - 0.25, cBaseY + 0.05, cCenterZ - 0.35, 0.09, 0.07, 0.09, metal);
+  box('Lente do espeto coqueiro', cCenterX - 0.25, cBaseY + 0.09, cCenterZ - 0.35, 0.07, 0.02, 0.07, glowingCoqueiroLens);
+
+  // SpotLight direcionado para a copa e tronco do coqueiro
+  coqueiroSpot = new THREE.SpotLight('#ffc87a', 0, 9.0, Math.PI / 3.2, 0.4, 1.8);
+  coqueiroSpot.position.set(cCenterX - 0.25, cBaseY + 0.15, cCenterZ - 0.35);
+  coqueiroSpot.target.position.set(cCenterX, cBaseY + 2.4, cCenterZ);
+  scene.add(coqueiroSpot);
+  scene.add(coqueiroSpot.target);
+
+  // Luz pontual quente para banhar o tronco e o canteiro
+  coqueiroPoint = new THREE.PointLight('#ffa63a', 0, 5.0, 2.0);
+  coqueiroPoint.position.set(cCenterX - 0.1, cBaseY + 0.7, cCenterZ - 0.1);
+  scene.add(coqueiroPoint);
+
   // Banquetas da ilha gourmet
   const island = byId.get(10);
   if (island) {
@@ -366,6 +398,12 @@ export function finishScene(
       });
       glowingArandelas.color.set(on ? '#ffdf9d' : '#221a12');
       glowingArandelas.emissiveIntensity = on ? 4.5 : 0.0;
+
+      // Luz do coqueiro sincronizada com as arandelas
+      if (coqueiroSpot) coqueiroSpot.intensity = on ? 24 : 0;
+      if (coqueiroPoint) coqueiroPoint.intensity = on ? 12 : 0;
+      glowingCoqueiroLens.color.set(on ? '#ffe0a0' : '#221a12');
+      glowingCoqueiroLens.emissiveIntensity = on ? 5.0 : 0.0;
     },
     setStairLight(on: boolean) {
       if (stairLight) stairLight.intensity = on ? 18 : 0;

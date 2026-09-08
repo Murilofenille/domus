@@ -234,6 +234,16 @@ export const SpotifyPlayer: React.FC = () => {
     setIsLoadingTracks(true);
     const res = await fetchPlaylistTracks(pl.id);
     setPlaylistTracks(res.tracks);
+
+    // Atualiza a contagem precisa de músicas tanto no banner da playlist quanto na grade
+    const accurateTotal = res.total !== undefined && res.total > 0 ? res.total : res.tracks.length;
+    if (accurateTotal > 0) {
+      setSelectedPlaylist((prev) => (prev ? { ...prev, tracksTotal: accurateTotal } : null));
+      setPlaylists((prev) =>
+        prev.map((item) => (item.id === pl.id ? { ...item, tracksTotal: accurateTotal } : item))
+      );
+    }
+
     if (res.error === 'FORBIDDEN') {
       setPlaylistError('PERMISSIONS_REQUIRED');
     } else if (res.error && res.error !== 'EMPTY') {
@@ -689,7 +699,15 @@ export const SpotifyPlayer: React.FC = () => {
                     <div className="spotify-detail-meta">
                       <span className="spotify-detail-tag">PLAYLIST</span>
                       <h4 className="spotify-detail-title">{selectedPlaylist.name}</h4>
-                      <span className="spotify-detail-sub">{selectedPlaylist.tracksTotal} faixas no total</span>
+                      <span className="spotify-detail-sub">
+                        {isLoadingTracks
+                          ? 'Carregando músicas...'
+                          : `${(selectedPlaylist.tracksTotal || playlistTracks.length) || 0} ${
+                              ((selectedPlaylist.tracksTotal || playlistTracks.length) || 0) === 1
+                                ? 'música'
+                                : 'músicas'
+                            }`}
+                      </span>
                       <button
                         onClick={() => handlePlayPlaylist(selectedPlaylist.uri)}
                         className="spotify-detail-play-all"
@@ -806,7 +824,11 @@ export const SpotifyPlayer: React.FC = () => {
                           </button>
                         </div>
                         <h5 className="spotify-pl-title">{pl.name}</h5>
-                        <span className="spotify-pl-tracks">{pl.tracksTotal} músicas • Toque p/ ver faixas</span>
+                        <span className="spotify-pl-tracks">
+                          {pl.tracksTotal > 0
+                            ? `${pl.tracksTotal} ${pl.tracksTotal === 1 ? 'música' : 'músicas'}`
+                            : 'Ver músicas'} • Toque p/ abrir
+                        </span>
                       </div>
                     ))
                   )}

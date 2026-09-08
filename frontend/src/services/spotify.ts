@@ -433,6 +433,24 @@ export async function seekSpotifyTrack(positionMs: number): Promise<boolean> {
 }
 
 /**
+ * Extrai o número total de músicas de um objeto de playlist do Spotify de forma resiliente
+ */
+function extractTracksTotal(p: any): number {
+  if (!p) return 0;
+  if (typeof p.tracks?.total === 'number' && p.tracks.total >= 0) return p.tracks.total;
+  if (typeof p.items?.total === 'number' && p.items.total >= 0) return p.items.total;
+  if (typeof p.total === 'number' && p.total >= 0) return p.total;
+  if (typeof p.total_tracks === 'number' && p.total_tracks >= 0) return p.total_tracks;
+  if (typeof p.item_count === 'number' && p.item_count >= 0) return p.item_count;
+  if (typeof p.tracks === 'number' && p.tracks >= 0) return p.tracks;
+  if (p.tracks?.total && !isNaN(Number(p.tracks.total))) return Number(p.tracks.total);
+  if (p.items?.total && !isNaN(Number(p.items.total))) return Number(p.items.total);
+  if (Array.isArray(p.tracks)) return p.tracks.length;
+  if (Array.isArray(p.items)) return p.items.length;
+  return 0;
+}
+
+/**
  * Busca as playlists do usuário
  */
 export async function fetchUserPlaylists(): Promise<SpotifyPlaylist[]> {
@@ -444,14 +462,35 @@ export async function fetchUserPlaylists(): Promise<SpotifyPlaylist[]> {
 
   try {
     const data = await res.json();
-    return (data.items || []).filter((p: any) => p && p.id).map((p: any) => ({
+    const playlists: SpotifyPlaylist[] = (data.items || []).filter((p: any) => p && p.id).map((p: any) => ({
       id: p.id,
       name: p.name,
       description: p.description || '',
       image: p.images?.[0]?.url || p.images?.[1]?.url || '',
       uri: p.uri,
-      tracksTotal: p.tracks?.total || 0,
+      tracksTotal: extractTracksTotal(p),
     }));
+
+    // Se alguma playlist ficou com 0 músicas por limitação do endpoint simplificado, busca o total exato
+    const zeroCountPlaylists = playlists.filter((pl) => pl.tracksTotal === 0).slice(0, 10);
+    if (zeroCountPlaylists.length > 0) {
+      await Promise.all(
+        zeroCountPlaylists.map(async (pl) => {
+          try {
+            const detailRes = await spotifyFetch(`https://api.spotify.com/v1/playlists/${pl.id}?fields=tracks(total),items(total)`);
+            if (detailRes && detailRes.ok) {
+              const detailData = await detailRes.json();
+              const count = extractTracksTotal(detailData);
+              if (count > 0) {
+                pl.tracksTotal = count;
+              }
+            }
+          } catch {}
+        })
+      );
+    }
+
+    return playlists;
   } catch (err) {
     console.error('Erro ao analisar playlists:', err);
     return [];
@@ -460,6 +499,7 @@ export async function fetchUserPlaylists(): Promise<SpotifyPlaylist[]> {
 
 export interface PlaylistTracksResult {
   tracks: SpotifyPlaylistTrack[];
+  total?: number;
   error?: 'FORBIDDEN' | 'NOT_FOUND' | 'AUTH_ERROR' | 'EMPTY' | 'UNKNOWN' | null;
   message?: string;
 }
@@ -499,6 +539,11 @@ export async function fetchPlaylistTracks(playlistId: string): Promise<PlaylistT
     const data = await res.json();
     // Extrai itens de qualquer uma das estruturas possíveis (items, items.items, tracks.items)
     const rawItems = data.items?.items || data.items || data.tracks?.items || [];
+    const totalCount =
+      (typeof data.total === 'number' && data.total >= 0 ? data.total : null) ??
+      (typeof data.tracks?.total === 'number' && data.tracks.total >= 0 ? data.tracks.total : null) ??
+      (typeof data.items?.total === 'number' && data.items.total >= 0 ? data.items.total : null) ??
+      rawItems.length;
 
     const tracks: SpotifyPlaylistTrack[] = rawItems
       .map((item: any) => {
@@ -516,7 +561,11 @@ export async function fetchPlaylistTracks(playlistId: string): Promise<PlaylistT
       })
       .filter((t: any): t is SpotifyPlaylistTrack => t !== null);
 
-    return { tracks, error: tracks.length === 0 ? 'EMPTY' : null };
+    return {
+      tracks,
+      total: totalCount > 0 ? totalCount : tracks.length,
+      error: tracks.length === 0 ? 'EMPTY' : null
+    };
   } catch (err) {
     console.error('Erro ao processar faixas da playlist:', err);
     return { tracks: [], error: 'UNKNOWN', message: 'Erro ao processar lista de músicas.' };

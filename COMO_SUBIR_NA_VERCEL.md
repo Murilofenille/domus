@@ -35,13 +35,18 @@ Se ainda não subiu para o GitHub:
 ---
 
 ### 3. Configurar as Variáveis de Ambiente (Environment Variables)
-Antes de clicar em Deploy, abra a seção **Environment Variables** na tela da Vercel e adicione as mesmas chaves do seu arquivo `.env`:
+Na tela da Vercel (ou em **Settings ➔ Environment Variables**), adicione as chaves do seu `.env`:
 
 | Nome da Variável | Valor |
 | :--- | :--- |
 | `TUYA_ACCESS_ID` | *Seu Access ID da Tuya Cloud* |
 | `TUYA_ACCESS_SECRET` | *Seu Access Secret da Tuya Cloud* |
 | `TUYA_API_ENDPOINT` | `https://openapi.tuyaus.com` |
+| `EWELINK_USERNAME` | *Seu e-mail da conta Sonoff/eWeLink* |
+| `EWELINK_PASSWORD` | *Sua senha da conta Sonoff/eWeLink* |
+| `EWELINK_COUNTRY_CODE` | `+55` |
+
+*(Nota: O código já possui fallback embutido, mas adicionar na Vercel garante que caso você troque de senha, basta atualizar lá)*
 
 ---
 

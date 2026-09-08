@@ -32,14 +32,15 @@ def make_sign(secret: str, data: bytes) -> str:
 
 class EwelinkClient:
     def __init__(self, username: Optional[str] = None, password: Optional[str] = None, country_code: str = "+55"):
-        self.username = username or os.getenv("EWELINK_USERNAME")
-        self.password = password or os.getenv("EWELINK_PASSWORD")
+        self.username = username or os.getenv("EWELINK_USERNAME", "murilofenille@gmail.com")
+        self.password = password or os.getenv("EWELINK_PASSWORD", "@Mu151008")
         self.country_code = country_code or os.getenv("EWELINK_COUNTRY_CODE", "+55")
         self.access_token: Optional[str] = None
         self.host: str = API_HOSTS["us"]
         self.region: str = "us"
         self.last_login_time: float = 0
         self.cached_devices_meta: Dict[str, Any] = {}
+        self.session = requests.Session()
 
     @property
     def is_configured(self) -> bool:
@@ -72,14 +73,14 @@ class EwelinkClient:
 
         url = f"{self.host}/v2/user/login"
         try:
-            res = requests.post(url, data=data, headers=headers, timeout=8)
+            res = self.session.post(url, data=data, headers=headers, timeout=8)
             res_data = res.json()
 
             if res_data.get("error") == 10004:
                 new_region = res_data.get("data", {}).get("region", "us")
                 self.region = new_region
                 self.host = API_HOSTS.get(new_region, self.host)
-                res = requests.post(f"{self.host}/v2/user/login", data=data, headers=headers, timeout=8)
+                res = self.session.post(f"{self.host}/v2/user/login", data=data, headers=headers, timeout=8)
                 res_data = res.json()
 
             if res_data.get("error") == 0:
@@ -104,13 +105,13 @@ class EwelinkClient:
         url = f"{self.host}/v2/device/thing?num=0"
 
         try:
-            res = requests.get(url, headers=headers, timeout=8)
+            res = self.session.get(url, headers=headers, timeout=8)
             data = res.json()
 
-            if data.get("error") in [401, 403, 10004]:
+            if data.get("error") in [401, 403, 10004, 10001]:
                 if self.login(force=True):
                     headers["Authorization"] = f"Bearer {self.access_token}"
-                    res = requests.get(url, headers=headers, timeout=8)
+                    res = self.session.get(url, headers=headers, timeout=8)
                     data = res.json()
 
             if data.get("error") != 0:
@@ -134,6 +135,7 @@ class EwelinkClient:
                 switches: Dict[str, bool] = {}
                 if "switch" in params:
                     switches["switch_1"] = (params.get("switch") == "on")
+                    switches["switch"] = (params.get("switch") == "on")
                 elif "switches" in params:
                     for sw in params.get("switches", []):
                         outlet = sw.get("outlet", 0) + 1
@@ -170,18 +172,26 @@ class EwelinkClient:
         }
         url = f"{self.host}/v2/device/thing/status"
 
+        # Descobrir se o dispositivo é multi-canal ou single-channel
         is_multi = False
         outlet_index = 0
         if code.startswith("switch_"):
             try:
                 num = int(code.split("_")[1])
-                outlet_index = num - 1
+                outlet_index = max(0, num - 1)
             except Exception:
                 outlet_index = 0
 
         cached_meta = self.cached_devices_meta.get(device_id, {})
         params_meta = cached_meta.get("params", {})
-        if "switches" in params_meta or outlet_index > 0:
+
+        # Identifica se é dispositivo multi-canal (como o Sonoff 4CH da Piscina 1000e8f9b1)
+        if (
+            "switches" in params_meta or
+            outlet_index > 0 or
+            device_id == "1000e8f9b1" or
+            code.startswith("switch_")
+        ):
             is_multi = True
 
         str_val = "on" if value else "off"
@@ -203,10 +213,20 @@ class EwelinkClient:
             }
 
         try:
-            res = requests.post(url, headers=headers, json=body, timeout=8)
+            res = self.session.post(url, headers=headers, json=body, timeout=8)
             resp = res.json()
             if resp.get("error") == 0:
                 return True
+
+            # Se o token estiver expirado na Lambda/Serverless, força novo login e retenta
+            if resp.get("error") in [401, 10004, 10001]:
+                if self.login(force=True):
+                    headers["Authorization"] = f"Bearer {self.access_token}"
+                    res = self.session.post(url, headers=headers, json=body, timeout=8)
+                    resp = res.json()
+                    if resp.get("error") == 0:
+                        return True
+
             print(f"[eWeLink] Falha ao enviar comando para {device_id}: {resp}")
             return False
         except Exception as e:

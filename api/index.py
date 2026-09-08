@@ -3,7 +3,7 @@ import json
 import time
 from typing import Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -24,7 +24,7 @@ except ImportError:
 
 load_dotenv()
 
-app = FastAPI(title="DOMUS | Smart Home", version="3.2.0", redirect_slashes=False)
+app = FastAPI(title="DOMUS | Smart Home", version="3.3.0", redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,102 +35,70 @@ app.add_middleware(
 )
 
 @app.middleware("http")
-async def vercel_route_fix_middleware(request, call_next):
-    # Restaura a rota original caso o Vercel tenha reescrito o path de destino
-    matched = request.headers.get("x-matched-path") or request.headers.get("x-original-uri")
-    if matched:
-        # Se for /api/status ou /status, ajusta no escopo ASGI
-        clean_path = matched.split("?")[0]
+async def vercel_route_fix_middleware(request: Request, call_next):
+    # Restaura a rota original requisitada pelo navegador no ambiente Serverless da Vercel
+    original_uri = (
+        request.headers.get("x-forwarded-uri")
+        or request.headers.get("x-original-uri")
+        or request.headers.get("x-invoke-path")
+        or ""
+    )
+
+    if not original_uri and "x-now-route-matches" in request.headers:
+        matches = request.headers.get("x-now-route-matches", "")
+        for part in matches.split("&"):
+            if part.startswith("1="):
+                original_uri = "/api/" + part[2:]
+                break
+
+    if not original_uri:
+        matched = request.headers.get("x-matched-path", "")
+        if matched and matched not in ["/api/index.py", "/api"]:
+            original_uri = matched
+
+    if original_uri:
+        clean_path = original_uri.split("?")[0]
         if clean_path and clean_path not in ["/api/index.py", "/api"]:
             request.scope["path"] = clean_path
+
     return await call_next(request)
 
+# Dispositivos Tuya da Área de Lazer
 DEVICES = {
-    "quarto_murilo": {"name": "Quarto Murilo", "id": "7173100234ab95105538"},
-    "escritorio_murilo": {"name": "Escritório Murilo", "id": "eba0bc9062cb902519bv8a"},
-    "sala": {"name": "Interruptor Sala", "id": "eb4363d2fae69d1b3ak5lg"},
-    "cozinha": {"name": "Cozinha", "id": "eb0253512b47c620f1b3tg"},
-    "lavanderia": {"name": "Lavanderia", "id": "eb06af9cdbe3a70513uvmv"},
-    "quarto_marina": {"name": "Quarto Marina", "id": "0076231634ab9510916c"},
-    "tomada_marina": {"name": "Tomada Marina", "id": "eba520de38c7edcd5cdesn"},
-    "quarto_alfeo": {"name": "Quarto Alfeo", "id": "0076231634ab9510ba04"},
-    "tomada_alfeo": {"name": "Tomada Alfeo", "id": "eb2bf7de07a19292ac2kf4"},
-    "banheiro_alfeo": {"name": "Banheiro Alfeo", "id": "eb4bb2c6b85ca80c08xen2"},
-    "banheiro_social": {"name": "Banheiro Social", "id": "ebea951fa1e1900c21l4op"},
-    "suite_master": {"name": "Suíte Master", "id": "eb7b83c1dcb03d24231db5"},
-    "banheiro_master": {"name": "Banheiro Master", "id": "eb359369a7c7cd5cacz5cb"},
-    "closet": {"name": "Closet", "id": "0076231634ab951d1684"},
-    "led_closet": {"name": "Led Guarda Roupa", "id": "eb3a48b14417d7cd46g13x"},
-    "corredor_principal": {"name": "Corredor Principal", "id": "7753207334ab951d4101"},
-    "corredor_suite": {"name": "Corredor Suíte", "id": "eb7ec51b1a94acaf7ffjqx"},
-    "corredor_claraboia": {"name": "Corredor Claraboia", "id": "ebbfb1b732983a19det4ng"},
+    "termostato": {"name": "Termostato", "id": "ebb44c0ed17053d7ba7c57"},
+    "temperatura_piscina": {"name": "Temperatura Piscina", "id": "ebcefc3209dad58d10wpgv"},
 }
 
 DEFAULT_DEVICE_ROOMS = {
-    "quarto_murilo": "bedroom-01",
-    "escritorio_murilo": "bedroom-01",
-    "sala": "living",
-    "cozinha": "gourmet",
-    "lavanderia": "laundry",
-    "quarto_marina": "bedroom-02",
-    "tomada_marina": "bedroom-02",
-    "quarto_alfeo": "suite",
-    "tomada_alfeo": "suite",
-    "banheiro_alfeo": "bath-suite",
-    "banheiro_social": "bath-social",
-    "suite_master": "master",
-    "banheiro_master": "bath-master",
-    "closet": "closet",
-    "led_closet": "closet",
-    "corredor_principal": "hall",
-    "corredor_suite": "rear-hall",
-    "corredor_claraboia": "skylight-east",
+    "1000e4a34e": "escada",
+    "1000e4bd27": "piscina",
+    "1000e4a34c": "gourmet",
+    "1000e8f9b1": "piscina",
+    "termostato": "piscina",
+    "temperatura_piscina": "piscina",
 }
 
 DEFAULT_CHANNEL_NAMES = {
-    "sala": {
-        "switch_1": "Luz Sala TV",
-        "switch_2": "Spots Sala",
-        "switch_3": "Mesa de Jantar",
-        "switch_4": "Lustre Jantar",
-        "switch_5": "Cortineiro Sala",
-        "switch_6": "Sanca de Gesso",
-        "switch_7": "Luz Hall Entrada",
-        "switch_8": "Spots Parede"
+    "1000e8f9b1": {
+        "switch_1": "Filtro",
+        "switch_2": "Hidro Costa",
+        "switch_3": "Aquecedor",
+        "switch_4": "Hidro Pé"
     },
-    "quarto_murilo": {
-        "switch_1": "Luz Central Quarto",
-        "switch_2": "Spots Cabeceira",
-        "switch_3": "Fita LED Sanca"
+    "1000e4a34e": {
+        "switch": "Luz Escada",
+        "switch_1": "Luz Escada"
     },
-    "escritorio_murilo": {
-        "switch_1": "Luz Mesa Trabalho",
-        "switch_2": "Tomada Monitor/PC"
+    "1000e4bd27": {
+        "switch": "Arandela Piscina",
+        "switch_1": "Arandela Piscina"
     },
-    "cozinha": {
-        "switch_1": "Ilha Central",
-        "switch_2": "Bancada Pia",
-        "switch_3": "Armários Superiores"
+    "1000e4a34c": {
+        "switch": "Iluminação Salão",
+        "switch_1": "Iluminação Salão"
     },
-    "quarto_marina": {
-        "switch_1": "Luz Central",
-        "switch_2": "Spots Cama"
-    },
-    "closet": {
-        "switch_1": "Luz Geral Closet",
-        "switch_2": "Spots Espelho"
-    },
-    "led_closet": {
-        "switch_1": "Barra LED Guarda-Roupa"
-    },
-    "lavanderia": {
-        "switch_1": "Luz Principal Lavanderia"
-    },
-    "corredor_principal": {
-        "switch_1": "Luz Corredor Central"
-    },
-    "corredor_suite": {
-        "switch_1": "Luz Corredor Suíte Master"
+    "termostato": {
+        "switch": "Termostato Tuya"
     }
 }
 
@@ -151,11 +119,11 @@ _openapi_instance = None
 def get_tuya():
     global _openapi_instance
     if _openapi_instance is None:
-        access_id = os.getenv("TUYA_ACCESS_ID")
-        access_secret = os.getenv("TUYA_ACCESS_SECRET")
+        access_id = os.getenv("TUYA_ACCESS_ID", "cw8xfypa89ykskhtmu4q")
+        access_secret = os.getenv("TUYA_ACCESS_SECRET", "67d91e7bf68640bd9fa742affa83b941")
         endpoint = os.getenv("TUYA_API_ENDPOINT", "https://openapi.tuyaus.com")
         if not access_id or not access_secret:
-            raise RuntimeError("TUYA_ACCESS_ID e TUYA_ACCESS_SECRET precisam estar configurados nas variáveis de ambiente.")
+            raise RuntimeError("TUYA_ACCESS_ID e TUYA_ACCESS_SECRET precisam estar configurados.")
         if TuyaOpenAPI is None:
             raise RuntimeError("tuya_connector não está instalado no ambiente.")
         _openapi_instance = TuyaOpenAPI(endpoint, access_id, access_secret)
@@ -197,19 +165,22 @@ def load_stored_config() -> Dict[str, Any]:
         except Exception as e:
             print(f"Erro ao ler do Vercel KV: {e}")
 
-    # 2. Tentar arquivo devices_mapping.json local
-    config_file = os.path.join(os.path.dirname(__file__), "..", "backend", "devices_mapping.json")
-    if os.path.exists(config_file):
-        try:
-            with open(config_file, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
+    # 2. Tentar arquivo devices_mapping.json local em api/ ou backend/
+    for p in [
+        os.path.join(os.path.dirname(__file__), "devices_mapping.json"),
+        os.path.join(os.path.dirname(__file__), "..", "backend", "devices_mapping.json")
+    ]:
+        if os.path.exists(p):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
 
     return {
         "device_rooms": DEFAULT_DEVICE_ROOMS,
         "channel_names": DEFAULT_CHANNEL_NAMES,
-        "hidden_channels": {"led_closet": ["switch_inching", "switch_type"]},
+        "hidden_channels": {},
         "channel_rooms": {}
     }
 
@@ -219,21 +190,36 @@ def save_stored_config(data: Dict[str, Any]) -> bool:
             r = requests.post(
                 f"{KV_URL}/set/domus_device_config",
                 headers={"Authorization": f"Bearer {KV_TOKEN}", "Content-Type": "application/json"},
-                data=json.dumps(json.dumps(data)),
-                timeout=3.0
+                json=json.dumps(data),
+                timeout=2.5
             )
             return r.status_code == 200
         except Exception as e:
-            print(f"Erro ao salvar no Vercel KV: {e}")
-            return False
-    return True
+            print(f"Erro ao gravar no Vercel KV: {e}")
+
+    for p in [
+        os.path.join(os.path.dirname(__file__), "devices_mapping.json"),
+        os.path.join(os.path.dirname(__file__), "..", "backend", "devices_mapping.json")
+    ]:
+        try:
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            return True
+        except Exception:
+            pass
+
+    return False
 
 @app.get("/")
 @app.get("/api")
-@app.get("/api/health")
-@app.get("/health")
-async def health():
-    return {"status": "ok", "app": "DOMUS | Smart Home", "mode": "serverless", "time": time.time()}
+async def root():
+    return {
+        "status": "online",
+        "service": "DOMUS Smart Home Cloud API",
+        "version": "3.3.0",
+        "timestamp": time.time()
+    }
 
 @app.get("/api/status")
 @app.get("/status")
@@ -244,7 +230,7 @@ async def get_status(device_id: Optional[str] = None):
     # Revalidar cache se expirou há mais de 3.5 segundos ou estiver vazio
     if now - last_cache_timestamp > 3.5 or not memory_devices_cache:
         try:
-            with ThreadPoolExecutor(max_workers=10) as executor:
+            with ThreadPoolExecutor(max_workers=5) as executor:
                 futures = [
                     executor.submit(fetch_single_device, k, info["id"])
                     for k, info in DEVICES.items()
@@ -255,7 +241,7 @@ async def get_status(device_id: Optional[str] = None):
                     new_cache[k] = dev_data
                     new_cache[dev_data["device_id"]] = dev_data
 
-                # Mesclar dispositivos eWeLink se configurado
+                # Mesclar dispositivos eWeLink (Sonoff da Área de Lazer)
                 if ewelink_instance and ewelink_instance.is_configured:
                     try:
                         ew_devs = ewelink_instance.fetch_devices()
@@ -267,7 +253,7 @@ async def get_status(device_id: Optional[str] = None):
                 memory_devices_cache = new_cache
                 last_cache_timestamp = now
         except Exception as e:
-            print(f"Erro ao buscar status na Tuya: {e}")
+            print(f"Erro ao buscar status: {e}")
             return {
                 "online": False,
                 "devices": dict(memory_devices_cache),
@@ -289,6 +275,7 @@ async def get_status(device_id: Optional[str] = None):
 
 @app.post("/api/command")
 @app.post("/command")
+@app.post("/api")
 async def send_command(req: CommandRequest):
     # Atualização otimista imediata no cache de memória
     if req.device_id in memory_devices_cache and "switches" in memory_devices_cache[req.device_id]:
@@ -298,6 +285,7 @@ async def send_command(req: CommandRequest):
     # Roteamento Inteligente: eWeLink vs Tuya
     is_ewelink = (
         req.device_id.startswith("1000") or
+        req.device_id in ["1000e4a34e", "1000e4bd27", "1000e4a34c", "1000e8f9b1"] or
         (req.device_id in memory_devices_cache and memory_devices_cache[req.device_id].get("brand") == "SONOFF") or
         (ewelink_instance and req.device_id in ewelink_instance.cached_devices_meta)
     )
@@ -307,7 +295,7 @@ async def send_command(req: CommandRequest):
         if success:
             return {"success": True, "provider": "ewelink", "device_id": req.device_id, "code": req.code, "value": req.value}
         else:
-            raise HTTPException(status_code=400, detail="Falha ao acionar dispositivo no eWeLink")
+            raise HTTPException(status_code=400, detail=f"Falha ao acionar dispositivo no eWeLink ({req.device_id})")
 
     # Caso contrário, roteia para Tuya
     payload = {
@@ -338,7 +326,7 @@ async def get_config():
     config = load_stored_config()
     device_rooms = config.get("device_rooms", DEFAULT_DEVICE_ROOMS)
     channel_names = config.get("channel_names", DEFAULT_CHANNEL_NAMES)
-    hidden_channels = config.get("hidden_channels", {"led_closet": ["switch_inching", "switch_type"]})
+    hidden_channels = config.get("hidden_channels", {})
     channel_rooms = config.get("channel_rooms", {})
 
     devices_list = []
@@ -350,7 +338,7 @@ async def get_config():
             "name": info["name"],
             "id": info["id"],
             "online": cached.get("online", True),
-            "room_id": device_rooms.get(key, ""),
+            "room_id": device_rooms.get(key, "piscina"),
             "switches": switches,
             "custom_channel_names": channel_names.get(key, {}),
             "hidden_channels": hidden_channels.get(key, []),
@@ -359,6 +347,12 @@ async def get_config():
 
     # Incluir dispositivos eWeLink na lista
     if ewelink_instance and ewelink_instance.is_configured:
+        if not ewelink_instance.cached_devices_meta:
+            try:
+                ewelink_instance.fetch_devices()
+            except Exception:
+                pass
+
         for dev_id, item_meta in ewelink_instance.cached_devices_meta.items():
             cached = memory_devices_cache.get(dev_id) or {}
             switches = cached.get("switches", {})
@@ -367,7 +361,7 @@ async def get_config():
                 "name": cached.get("name", item_meta.get("name", "Sonoff")),
                 "id": dev_id,
                 "online": cached.get("online", True),
-                "room_id": device_rooms.get(dev_id, "leisure"),
+                "room_id": device_rooms.get(dev_id, "piscina"),
                 "switches": switches,
                 "custom_channel_names": channel_names.get(dev_id, {}),
                 "hidden_channels": hidden_channels.get(dev_id, []),
@@ -393,4 +387,4 @@ async def save_config(payload: DeviceConfigPayload):
         "updated_at": time.time()
     }
     save_stored_config(data_to_save)
-    return {"success": True, "message": "Configurações salvas com sucesso!"}
+    return {"success": True}

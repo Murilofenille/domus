@@ -1,0 +1,35 @@
+{
+  "device_rooms": {
+    "1000e4a34e": "escada",
+    "1000e4bd27": "piscina",
+    "1000e4a34c": "gourmet",
+    "1000e8f9b1": "piscina",
+    "termostato": "piscina",
+    "temperatura_piscina": "piscina"
+  },
+  "channel_names": {
+    "1000e8f9b1": {
+      "switch_1": "Filtro",
+      "switch_2": "Hidro Costa",
+      "switch_3": "Aquecedor",
+      "switch_4": "Hidro Pé"
+    },
+    "1000e4a34e": {
+      "switch": "Luz Escada",
+      "switch_1": "Luz Escada"
+    },
+    "1000e4bd27": {
+      "switch": "Arandela Piscina",
+      "switch_1": "Arandela Piscina"
+    },
+    "1000e4a34c": {
+      "switch": "Iluminação Salão",
+      "switch_1": "Iluminação Salão"
+    },
+    "termostato": {
+      "switch": "Termostato Tuya"
+    }
+  },
+  "hidden_channels": {},
+  "channel_rooms": {}
+}

@@ -3,6 +3,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { applyFloorFinishes } from './leisureFloors';
 import { refineGarden } from './leisureGarden';
 import { rebuildPools } from './leisurePool';
+import { refineGates } from './leisureGates';
 
 // Seamless textures geradas via HTML Canvas procedural
 function texture(kind: 'tile' | 'brick' | 'paving'): THREE.CanvasTexture {
@@ -215,6 +216,7 @@ export function finishScene(
   const graniteIDs = new Set([9, 10, 13, 18]);
   const byId = new Map(meshes.map(m => [m.userData.id, m]));
   refineGarden(scene, meshes);
+  refineGates(scene, meshes);
 
   const arandelaLights: THREE.PointLight[] = [];
   const wallBeams: THREE.Mesh[] = [];

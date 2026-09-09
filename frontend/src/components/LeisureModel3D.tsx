@@ -98,12 +98,12 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     controlsRef.current = controls;
 
     // Luz ambiente noturna suave (céu azul marinho noturno / piso escuro)
-    const hemi = new THREE.HemisphereLight(0x18243b, 0x080b12, 0.08);
+    const hemi = new THREE.HemisphereLight(0x18243b, 0x080b12, 0.16);
     scene.add(hemi);
     hemiRef.current = hemi;
 
     // Luz direcional do luar suave
-    const sun = new THREE.DirectionalLight(0x6080b0, 0.04);
+    const sun = new THREE.DirectionalLight(0x6080b0, 0.07);
     sun.position.set(-10, 25, 10);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
@@ -374,11 +374,11 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
       if (hemiRef.current) {
         hemiRef.current.color.set(next ? 0x18243b : 0xffffff);
         hemiRef.current.groundColor.set(next ? 0x080b12 : 0x887969);
-        hemiRef.current.intensity = next ? 0.08 : 1.8;
+        hemiRef.current.intensity = next ? 0.16 : 1.8;
       }
       if (sunRef.current) {
         sunRef.current.color.set(next ? 0x6080b0 : 0xffefd9);
-        sunRef.current.intensity = next ? 0.04 : 2.6;
+        sunRef.current.intensity = next ? 0.07 : 2.6;
       }
       if (finishesRef.current) finishesRef.current.setNight(next);
       if (rendererRef.current) rendererRef.current.shadowMap.needsUpdate = true;

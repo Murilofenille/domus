@@ -185,7 +185,7 @@ export function finishScene(
   const room = new RoomEnvironment();
   const env = pmrem.fromScene(room, 0.05);
   scene.environment = env.texture;
-  scene.environmentIntensity = 0.04;
+  scene.environmentIntensity = 0.09;
   room.dispose();
   pmrem.dispose();
 
@@ -571,7 +571,7 @@ export function finishScene(
     update(_t: number) { },
     setNight(on: boolean) {
       // Controla a intensidade da luz ambiente/reflexiva do céu noturno
-      scene.environmentIntensity = on ? 0.04 : 1.0;
+      scene.environmentIntensity = on ? 0.09 : 1.0;
     },
     setArandelas(on: boolean) {
       arandelaLights.forEach(l => {

@@ -45,7 +45,9 @@ export function createWallCutaway(scene:THREE.Scene,meshes:THREE.Mesh[]) {
             const sampleOther=THREE.MathUtils.lerp(w.bounds.min[other],w.bounds.max[other],fraction);
             const crossOther=THREE.MathUtils.lerp(camera.position[other],sampleOther,t);
             const crossY=THREE.MathUtils.lerp(camera.position.y,.45,t);
-            if(t>0&&t<1&&crossOther>=w.bounds.min[other]&&crossOther<=w.bounds.max[other]&&crossY<top+(w.hidden?.22:-.06))obstructs=true;
+            // Margem ampliada: esconde antes de a parede interceptar efetivamente a vista.
+            // A margem de retorno maior evita alternância ao orbitar perto do limite.
+            if(t>0&&t<1&&crossOther>=w.bounds.min[other]&&crossOther<=w.bounds.max[other]&&crossY<top+(w.hidden?1.8:1.4))obstructs=true;
           }
         }
         if(w.hidden!==obstructs){w.hidden=obstructs;changed=true;}

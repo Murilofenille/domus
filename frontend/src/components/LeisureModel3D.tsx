@@ -87,7 +87,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(38, container.clientWidth / container.clientHeight, 0.1, 150);
-    camera.position.set(-17.25, 12.875, 10.5);
+    camera.position.set(-14.5, 9, 5.5);
     cameraRef.current = camera;
 
     const controls = new OrbitControls(camera, canvas);
@@ -96,7 +96,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     controls.maxPolarAngle = Math.PI * 0.49;
     controls.maxDistance = 65;
     controls.minDistance = 6;
-    controls.target.set(0, 0.5, 0);
+    controls.target.set(1, 0.5, 0);
     controlsRef.current = controls;
 
     // Luz ambiente noturna suave (céu azul marinho noturno / piso escuro)
@@ -404,8 +404,8 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
 
     switch (preset) {
       case 'geral':
-        camera.position.set(-17.25, 12.875, 10.5);
-        controls.target.set(0, 0.5, 0);
+        camera.position.set(-14.5, 9, 5.5);
+        controls.target.set(1, 0.5, 0);
         break;
       case 'piscina':
         camera.position.set(13, 9, 8);

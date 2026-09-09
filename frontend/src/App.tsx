@@ -509,7 +509,7 @@ export function App() {
   }, [devicesList, allDevicesData, channelNames, handleToggleDeviceSwitch]);
 
   return (
-    <div className="app-viewport">
+    <div className={`app-viewport ${activeTab === 'floorplan' ? 'app-model-view' : 'app-home-view'}`}>
       {activeTab === 'dashboard' ? (
         <LeisureDashboard
           onOpenFloorplan={() => setActiveTab('floorplan')}

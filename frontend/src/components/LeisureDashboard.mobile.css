@@ -31,7 +31,7 @@
   }
   .leisure-dashboard-container .leisure-spotify-card { justify-content: flex-start; }
   .leisure-dashboard-container .leisure-album-wrapper {
-    max-width: 240px;
+    max-width: 164px;
     align-self: center;
     border-radius: 18px;
   }
@@ -57,6 +57,9 @@
   .leisure-dashboard-container .weather-location-title { font-size: 16px; overflow-wrap: anywhere; }
   .leisure-dashboard-container .weather-vector-icon { width: 54px; height: 54px; }
   .leisure-dashboard-container .weather-temp-c { font-size: 40px; }
+  .leisure-dashboard-container .weather-temp-f,
+  .leisure-dashboard-container .weather-humidity,
+  .leisure-dashboard-container .leisure-clock-pill { display: none; }
   .leisure-dashboard-container .weather-temp-box { flex-shrink: 0; }
   .leisure-dashboard-container .leisure-shortcuts-card { flex-direction: column; min-height: 0; }
   .leisure-dashboard-container .quick-access-big-card { min-height: 112px; padding: 16px; }

@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { finishScene, type FinishSceneResult } from '../3d/leisureFinishes';
 import { createWallCutaway } from '../3d/leisureCutaway';
+import './LeisureModel3D.mobile.css';
 import { 
   Sun, Moon, Eye, EyeOff, ArrowLeft, RotateCw,
   Lightbulb, Droplets, Thermometer, Flame, Sparkles
@@ -29,6 +30,8 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
   const [isNight, setIsNight] = useState(true);
   const [wallsLowered, setWallsLowered] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [poolControlsOpen, setPoolControlsOpen] = useState(false);
+  const [selectedView, setSelectedView] = useState<'geral' | 'piscina' | 'gourmet' | 'topo'>('geral');
   const [loadProgress, setLoadProgress] = useState(0);
 
   // Referências Three.js
@@ -398,6 +401,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
 
   // Presets de Câmera
   const setViewPreset = useCallback((preset: 'geral' | 'piscina' | 'gourmet' | 'topo') => {
+    setSelectedView(preset);
     if (!cameraRef.current || !controlsRef.current) return;
     const camera = cameraRef.current;
     const controls = controlsRef.current;
@@ -456,6 +460,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
           {/* Pin Escada */}
           <div
             ref={stairsPinRef}
+            title="Luz da escada"
             className="leisure-pin"
             style={{ display: 'none', willChange: 'transform' }}
             onClick={() => onToggleDeviceSwitch('1000e4a34e', 'switch', isStairOn)}
@@ -470,6 +475,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
           {/* Pin Arandelas Piscina */}
           <div
             ref={arandelasPinRef}
+            title="Arandelas"
             className="leisure-pin"
             style={{ display: 'none', willChange: 'transform' }}
             onClick={() => onToggleDeviceSwitch('1000e4bd27', 'switch', isArandelaOn)}
@@ -484,6 +490,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
           {/* Pin Iluminação Salão / Gourmet */}
           <div
             ref={gourmetPinRef}
+            title="Luz do salão / gourmet"
             className="leisure-pin"
             style={{ display: 'none', willChange: 'transform' }}
             onClick={() => onToggleDeviceSwitch('1000e4a34c', 'switch', isGourmetOn)}
@@ -498,7 +505,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
           {/* Pin Piscina & Deck */}
           <div
             ref={poolPinRef}
-            className="leisure-pool-widget"
+            className={`leisure-pool-widget ${poolControlsOpen ? 'pool-expanded' : ''}`}
             style={{ display: 'none', willChange: 'transform' }}
           >
             {poolTemperature !== undefined && (
@@ -508,6 +515,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
               </div>
             )}
 
+            <button type="button" className="mobile-pool-toggle" aria-expanded={poolControlsOpen} aria-label="Controles da piscina" onClick={() => setPoolControlsOpen(v => !v)}><Droplets size={18} /><span>Piscina</span></button>
             <div className="leisure-pool-controls">
               {/* Canal 1: Filtro */}
               <button
@@ -567,6 +575,9 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
       )}
 
       {/* Barra Flutuante Superior de Presets de Câmera */}
+      <select className="mobile-view-select" aria-label="Vista da maquete" value={selectedView} onChange={e => setViewPreset(e.target.value as typeof selectedView)}>
+        <option value="geral">Visão geral</option><option value="piscina">Piscina</option><option value="gourmet">Gourmet</option><option value="topo">Vista de cima</option>
+      </select>
       <div className="leisure-camera-bar">
         <button type="button" onClick={() => setViewPreset('geral')} className="leisure-cam-btn">
           Visão Geral
@@ -588,6 +599,8 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
         <button
           type="button"
           onClick={toggleWalls}
+          title={wallsLowered ? 'Restaurar muros' : 'Rebaixar muros'}
+          aria-label={wallsLowered ? 'Restaurar muros' : 'Rebaixar muros'}
           className={`leisure-tool-btn ${wallsLowered ? 'active-blue' : ''}`}
         >
           {wallsLowered ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -600,6 +613,8 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
         <button
           type="button"
           onClick={toggleNight}
+          title={isNight ? 'Ativar modo diurno' : 'Ativar modo noturno'}
+          aria-label={isNight ? 'Ativar modo diurno' : 'Ativar modo noturno'}
           className={`leisure-tool-btn ${isNight ? 'active-indigo' : 'active-amber'}`}
         >
           {isNight ? <Moon size={14} color="#818CF8" /> : <Sun size={14} color="#FBBF24" />}

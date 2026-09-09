@@ -1,0 +1,45 @@
+.mobile-view-select, .mobile-pool-toggle { display: none; }
+@media (max-width: 600px) {
+  .app-viewport { height: 100dvh; }
+  .app-model-view .topbar-container {
+    top: max(8px, env(safe-area-inset-top)); left: 8px; right: 8px;
+    height: 52px; padding: 4px 6px; gap: 4px; border-radius: 16px;
+    flex-wrap: nowrap;
+  }
+  .app-model-view .topbar-left, .app-model-view .topbar-center, .app-model-view .topbar-right {
+    position: static; transform: none; display: flex; flex: 0 1 auto; gap: 4px; min-width: 0;
+  }
+  .app-model-view .brand-logo, .app-model-view .light-counter-pill,
+  .app-model-view .time-display, .app-model-view .topbar-icon-btn,
+  .app-model-view .status-pill.online { display: none; }
+  .app-model-view .status-pill.offline { padding: 4px; }
+  .app-model-view .status-pill.offline span { display: none; }
+  .app-model-view .topbar-home-btn, .app-model-view .topbar-settings-btn,
+  .app-model-view .quick-action-btn { display: flex; width: 44px; height: 44px; min-width: 44px; padding: 0; align-items: center; justify-content: center; }
+  .app-model-view .topbar-home-btn span, .app-model-view .topbar-settings-btn span,
+  .app-model-view .quick-action-btn span { display: none; }
+  .app-model-view .viewmode-tab { min-width: 44px; min-height: 40px; padding: 4px 8px; font-size: 14px; }
+  .app-model-view .leisure-back-btn, .app-model-view .leisure-camera-bar { display: none; }
+  .app-model-view .mobile-view-select {
+    display: block; position: absolute; top: calc(max(8px, env(safe-area-inset-top)) + 60px); left: 12px;
+    z-index: 25; width: 152px; min-height: 44px; padding: 8px 12px;
+    background: #101925; border: 1px solid #334155; border-radius: 12px; color: #e2e8f0; font: inherit; font-size: 14px;
+  }
+  .app-model-view .leisure-tools-bar { left: auto; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); transform: none; padding: 4px; gap: 4px; }
+  .app-model-view .leisure-tool-btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .app-model-view .leisure-tool-btn span, .app-model-view .leisure-tool-sep { display: none; }
+  .app-model-view .leisure-tool-btn svg { width: 19px; height: 19px; }
+  .app-model-view .leisure-pin { padding: 3px; }
+  .app-model-view .leisure-pin-badge { min-height: 40px; padding: 8px; gap: 5px; font-size: 12px; box-shadow: 0 3px 9px #0005; }
+  .app-model-view .leisure-pin-badge > span:not(.leisure-pin-dot) { max-width: 66px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .app-model-view .leisure-pin-dot { width: 5px; height: 5px; flex-shrink: 0; }
+  .app-model-view .mobile-pool-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px 10px; border: 1px solid #155e75; background: #082f49; color: #a5f3fc; border-radius: 14px; font-size: 13px; }
+  .app-model-view .leisure-pool-controls { display: none; }
+  .app-model-view .pool-expanded .leisure-pool-controls { display: grid; grid-template-columns: repeat(2, 44px); gap: 4px; padding: 4px; border-radius: 16px; }
+  .app-model-view .leisure-pool-btn { width: 44px; height: 44px; }
+  .app-model-view .leisure-pool-temp { padding: 4px 8px; box-shadow: none; }
+  .app-model-view .leisure-loader-overlay { padding: 24px; text-align: center; }
+  /* Música permanece disponível na Home, sem ocupar a maquete no celular. */
+  .app-model-view .spotify-card-container, .app-model-view .spotify-connect-widget,
+  .app-model-view .spotify-mini-pill { display: none; }
+}

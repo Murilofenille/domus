@@ -292,12 +292,42 @@ export function finishScene(
 
   // Superfície da água e revestimento da piscina
   let poolLight: THREE.PointLight | null = null;
+  const hydroMesh = byId.get(3);
+  const hydroBounds = hydroMesh ? new THREE.Box3().setFromObject(hydroMesh) : null;
+  const deckMesh = byId.get(49);
+  const deckTop = deckMesh ? new THREE.Box3().setFromObject(deckMesh).max.y : 0.30;
+  // Recorta apenas o trecho da borda principal que atravessa a hidro.
+  function exposedBorderSegments(a: THREE.Vector3, b: THREE.Vector3) {
+    if (!hydroBounds) return [[a, b]];
+    const padding = 0.15;
+    const minX = hydroBounds.min.x-padding, maxX = hydroBounds.max.x+padding;
+    const minZ = hydroBounds.min.z-padding, maxZ = hydroBounds.max.z+padding;
+    const cuts = [0, 1];
+    for (const [start, end, min, max] of [[a.x,b.x,minX,maxX],[a.z,b.z,minZ,maxZ]]) {
+      if (Math.abs(end-start)<1e-8) continue;
+      for (const boundary of [min,max]) {
+        const t=(boundary-start)/(end-start);
+        if(t>0 && t<1) cuts.push(t);
+      }
+    }
+    cuts.sort((x,y)=>x-y);
+    const segments: THREE.Vector3[][]=[];
+    for(let i=1;i<cuts.length;i++) {
+      if(cuts[i]-cuts[i-1]<1e-6) continue;
+      const mid=a.clone().lerp(b,(cuts[i]+cuts[i-1])/2);
+      if(mid.x>=minX && mid.x<=maxX && mid.z>=minZ && mid.z<=maxZ) continue;
+      segments.push([a.clone().lerp(b,cuts[i-1]),a.clone().lerp(b,cuts[i])]);
+    }
+    return segments;
+  }
   for (const id of [3, 5]) {
     const mesh = byId.get(id);
     if (!mesh) continue;
     const g = mesh.geometry;
     g.computeBoundingBox();
-    const top = g.boundingBox ? g.boundingBox.max.y : 0;
+    const sourceTop = g.boundingBox ? g.boundingBox.max.y : 0;
+    // O topo da pedra fica ~15 cm acima do deck na escala visual do modelo.
+    const top = id === 3 ? deckTop + 0.01 : sourceTop;
     const p = g.attributes.position;
     const coords: number[] = [];
     const edges = new Map<string, { a: THREE.Vector3; b: THREE.Vector3; count: number }>();
@@ -307,7 +337,7 @@ export function finishScene(
       const a = new THREE.Vector3().fromBufferAttribute(p, i);
       const b = new THREE.Vector3().fromBufferAttribute(p, i + 1);
       const c = new THREE.Vector3().fromBufferAttribute(p, i + 2);
-      if ([a, b, c].every(v => Math.abs(v.y - top) < 0.0001)) {
+      if ([a, b, c].every(v => Math.abs(v.y - sourceTop) < 0.0001)) {
         for (const v of [a, b, c]) coords.push(v.x, top + 0.045, v.z);
         for (const [u, v] of [[a, b], [b, c], [c, a]]) {
           const k = [key(u), key(v)].sort().join('|');
@@ -325,7 +355,7 @@ export function finishScene(
     const bp = basin.attributes.position;
     const bottom = id === 3 ? 0.23 : 0.115;
     for (let i = 0; i < bp.count; i++) {
-      if (Math.abs(bp.getY(i) - top) < 0.0001) bp.setY(i, bottom);
+      if (Math.abs(bp.getY(i) - sourceTop) < 0.0001) bp.setY(i, bottom);
     }
     basin.computeVertexNormals();
     mesh.geometry = basin;
@@ -375,8 +405,11 @@ export function finishScene(
         lining.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), delta.normalize());
         worldUV(lining.geometry, 0.8);
         a.y = b.y = top + 0.10;
-        const border = beam(a, b, id === 3 ? 0.30 : 0.27, coping);
-        border.scale.y = 0.30;
+        const segments = id === 5 ? exposedBorderSegments(a,b) : [[a,b]];
+        for(const [start,end] of segments) {
+          const border = beam(start, end, id === 3 ? 0.30 : 0.27, coping);
+          border.scale.y = 0.30;
+        }
       }
     }
   }

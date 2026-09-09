@@ -131,7 +131,7 @@ export function rebuildPools(scene:THREE.Scene, meshes:THREE.Mesh[], tile:THREE.
         : ![...cells.values()].some(c=>x>c.x0&&x<c.x1&&z>c.z0&&z<c.z1);
       if(inFootprint)occupied.add(`${i},${j}`);
     }
-    const vertices:number[]=[],y=kind===3?hydroRim:ground,bottom=y-.07;
+    const vertices:number[]=[],y=(kind===3?hydroRim:ground)+.008,bottom=y-.074;
     for(const key of occupied){
       const [i,j]=key.split(',').map(Number),a=sx[i],b=sx[i+1],c=sz[j],d=sz[j+1];
       quad(vertices,[a,y,c],[a,y,d],[b,y,d],[b,y,c]);

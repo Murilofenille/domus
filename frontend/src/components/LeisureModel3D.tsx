@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { finishScene, type FinishSceneResult } from '../3d/leisureFinishes';
+import { createWallCutaway } from '../3d/leisureCutaway';
 import { 
   Sun, Moon, Eye, EyeOff, ArrowLeft, RotateCw,
   Lightbulb, Droplets, Thermometer, Flame, Sparkles
@@ -86,7 +87,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(38, container.clientWidth / container.clientHeight, 0.1, 150);
-    camera.position.set(0, 24, 23);
+    camera.position.set(-23, 17, 14);
     cameraRef.current = camera;
 
     const controls = new OrbitControls(camera, canvas);
@@ -95,7 +96,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     controls.maxPolarAngle = Math.PI * 0.49;
     controls.maxDistance = 65;
     controls.minDistance = 6;
-    controls.target.set(0, 0, 0);
+    controls.target.set(0, 0.5, 0);
     controlsRef.current = controls;
 
     // Luz ambiente noturna suave (céu azul marinho noturno / piso escuro)
@@ -150,6 +151,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     }
 
     // Carregar o modelo OBJ
+    let cutaway: ReturnType<typeof createWallCutaway> | null = null;
     const loader = new OBJLoader();
     loader.load(
       '/models/area-lazer.obj',
@@ -186,6 +188,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
         // Aplicar acabamentos realistas e iluminação
         const finishes = finishScene(scene, meshes, renderer, wallMeshes, upperMeshes);
         finishesRef.current = finishes;
+        cutaway = createWallCutaway(scene, meshes);
 
         // Configuração inicial noturna e sincronização das luzes reais
         finishes.setNight(true);
@@ -301,6 +304,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
 
       if (renderFrames > 0) {
         renderFrames--;
+        if (cutaway?.update(camera)) renderer.shadowMap.needsUpdate = true;
         renderer.render(scene, camera);
       }
     };
@@ -400,8 +404,8 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
 
     switch (preset) {
       case 'geral':
-        camera.position.set(0, 24, 23);
-        controls.target.set(0, 0, 0);
+        camera.position.set(-23, 17, 14);
+        controls.target.set(0, 0.5, 0);
         break;
       case 'piscina':
         camera.position.set(13, 9, 8);

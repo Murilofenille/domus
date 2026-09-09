@@ -18,8 +18,8 @@ export function rebuildPools(scene:THREE.Scene, meshes:THREE.Mesh[], tile:THREE.
   const p=pool.geometry.attributes.position;
   // Pequeno recuo lateral indicado no guia; valor aproximado na escala do OBJ.
   const poolSide = hb.min.z + .40;
-  const xs=new Set<number>([hb.min.x,hb.max.x,hb.min.x+.45,hb.max.x-.45]);
-  const zs=new Set<number>([hb.min.z,hb.max.z,hb.min.z+.45,hb.max.z-.45]);
+  const xs=new Set<number>([hb.min.x,hb.max.x,hb.min.x+.50,hb.max.x-.50]);
+  const zs=new Set<number>([hb.min.z,hb.max.z,hb.min.z+.50,hb.max.z-.50]);
   for(let i=0;i<p.count;i+=3) {
     if([0,1,2].every(k=>Math.abs(p.getY(i+k)-top)<.0001)) {
       const tri:number[]=[];
@@ -40,7 +40,7 @@ export function rebuildPools(scene:THREE.Scene, meshes:THREE.Mesh[], tile:THREE.
     const x=(xx[i]+xx[i+1])/2,z=(zz[j]+zz[j+1])/2;
     const spa=x>hb.min.x&&x<hb.max.x&&z>hb.min.z&&z<hb.max.z;
     if(!spa&&!inside(x,z))continue;
-    const inner=spa&&x>hb.min.x+.45&&x<hb.max.x-.45&&z>hb.min.z+.45&&z<hb.max.z-.45;
+    const inner=spa&&x>hb.min.x+.50&&x<hb.max.x-.50&&z>hb.min.z+.50&&z<hb.max.z-.50;
     const depth=spa?(inner?1.0:.48):(x<hb.max.x?.30:z>.30?.72:1.35);
     cells.set(`${i},${j}`,{x0:xx[i],x1:xx[i+1],z0:zz[j],z1:zz[j+1],bed:(spa?hydroRim:ground)-depth,rim:spa?hydroRim:ground,kind:spa?3:5});
   }

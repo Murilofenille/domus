@@ -66,7 +66,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     const renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
-      alpha: false,
+      alpha: true,
       powerPreference: 'high-performance',
       precision: 'highp'
     });
@@ -81,7 +81,8 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     rendererRef.current = renderer;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#06080e'); // Noite profunda e luxuosa
+    scene.background = null; // O degradê CSS permanece fixo atrás da maquete.
+    renderer.setClearColor(0x000000, 0);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(38, container.clientWidth / container.clientHeight, 0.1, 150);
@@ -180,14 +181,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
           meshes.push(mesh);
         }
 
-        // Piso base
-        const floor = new THREE.Mesh(
-          new THREE.BoxGeometry(26, 0.18, 11),
-          new THREE.MeshStandardMaterial({ color: '#807566', roughness: 0.9 })
-        );
-        floor.position.y = -0.5;
-        floor.receiveShadow = true;
-        scene.add(floor);
+        // O piso do OBJ já fecha o ambiente: sem plataforma extra fora dos muros.
 
         // Aplicar acabamentos realistas e iluminação
         const finishes = finishScene(scene, meshes, renderer, wallMeshes, upperMeshes);
@@ -369,7 +363,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     setIsNight(prev => {
       const next = !prev;
       if (sceneRef.current) {
-        sceneRef.current.background = new THREE.Color(next ? '#06080e' : '#d8deda');
+        sceneRef.current.background = null;
       }
       if (hemiRef.current) {
         hemiRef.current.color.set(next ? 0x18243b : 0xffffff);
@@ -428,7 +422,11 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
   }, []);
 
   return (
-    <div className="leisure-3d-wrapper" ref={containerRef}>
+    <div className="leisure-3d-wrapper" ref={containerRef} style={{
+      background: isNight
+        ? 'radial-gradient(ellipse at 50% 42%, #26313d 0%, #151d28 55%, #0c111a 100%)'
+        : 'radial-gradient(ellipse at 50% 42%, #eef0eb 0%, #d5dcd9 58%, #b5c0c3 100%)'
+    }}>
       {/* Canvas 3D */}
       <canvas ref={canvasRef} className="leisure-canvas" />
 

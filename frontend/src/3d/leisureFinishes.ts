@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { applyFloorFinishes } from './leisureFloors';
 import { refineGarden } from './leisureGarden';
+import { rebuildPools } from './leisurePool';
 
 // Seamless textures geradas via HTML Canvas procedural
 function texture(kind: 'tile' | 'brick' | 'paving'): THREE.CanvasTexture {
@@ -237,14 +238,6 @@ export function finishScene(
     return obj;
   }
 
-  function beam(a: THREE.Vector3, b: THREE.Vector3, width: number, mat: THREE.Material) {
-    const delta = new THREE.Vector3().subVectors(b, a);
-    const obj = box('Borda em pedra', 0, 0, 0, width, width, delta.length() + width, mat);
-    obj.position.copy(a).add(b).multiplyScalar(0.5);
-    obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), delta.normalize());
-    return obj;
-  }
-
   for (const mesh of meshes) {
     const id = mesh.userData.id;
     if (brickIDs.has(id)) { worldUV(mesh.geometry, 1.15); mesh.material = brick; }
@@ -290,129 +283,8 @@ export function finishScene(
     applyFloorFinishes(baseFloor, byId.get(49), divider);
   }
 
-  // Superfície da água e revestimento da piscina
+  rebuildPools(scene, meshes, poolTile, coping);
   let poolLight: THREE.PointLight | null = null;
-  const hydroMesh = byId.get(3);
-  const hydroBounds = hydroMesh ? new THREE.Box3().setFromObject(hydroMesh) : null;
-  const deckMesh = byId.get(49);
-  const deckTop = deckMesh ? new THREE.Box3().setFromObject(deckMesh).max.y : 0.30;
-  // Recorta apenas o trecho da borda principal que atravessa a hidro.
-  function exposedBorderSegments(a: THREE.Vector3, b: THREE.Vector3) {
-    if (!hydroBounds) return [[a, b]];
-    const padding = 0.15;
-    const minX = hydroBounds.min.x-padding, maxX = hydroBounds.max.x+padding;
-    const minZ = hydroBounds.min.z-padding, maxZ = hydroBounds.max.z+padding;
-    const cuts = [0, 1];
-    for (const [start, end, min, max] of [[a.x,b.x,minX,maxX],[a.z,b.z,minZ,maxZ]]) {
-      if (Math.abs(end-start)<1e-8) continue;
-      for (const boundary of [min,max]) {
-        const t=(boundary-start)/(end-start);
-        if(t>0 && t<1) cuts.push(t);
-      }
-    }
-    cuts.sort((x,y)=>x-y);
-    const segments: THREE.Vector3[][]=[];
-    for(let i=1;i<cuts.length;i++) {
-      if(cuts[i]-cuts[i-1]<1e-6) continue;
-      const mid=a.clone().lerp(b,(cuts[i]+cuts[i-1])/2);
-      if(mid.x>=minX && mid.x<=maxX && mid.z>=minZ && mid.z<=maxZ) continue;
-      segments.push([a.clone().lerp(b,cuts[i-1]),a.clone().lerp(b,cuts[i])]);
-    }
-    return segments;
-  }
-  for (const id of [3, 5]) {
-    const mesh = byId.get(id);
-    if (!mesh) continue;
-    const g = mesh.geometry;
-    g.computeBoundingBox();
-    const sourceTop = g.boundingBox ? g.boundingBox.max.y : 0;
-    // O topo da pedra fica ~15 cm acima do deck na escala visual do modelo.
-    const top = id === 3 ? deckTop + 0.01 : sourceTop;
-    const p = g.attributes.position;
-    const coords: number[] = [];
-    const edges = new Map<string, { a: THREE.Vector3; b: THREE.Vector3; count: number }>();
-    const key = (v: THREE.Vector3) => `${v.x.toFixed(4)},${v.z.toFixed(4)}`;
-
-    for (let i = 0; i < p.count; i += 3) {
-      const a = new THREE.Vector3().fromBufferAttribute(p, i);
-      const b = new THREE.Vector3().fromBufferAttribute(p, i + 1);
-      const c = new THREE.Vector3().fromBufferAttribute(p, i + 2);
-      if ([a, b, c].every(v => Math.abs(v.y - sourceTop) < 0.0001)) {
-        for (const v of [a, b, c]) coords.push(v.x, top + 0.045, v.z);
-        for (const [u, v] of [[a, b], [b, c], [c, a]]) {
-          const k = [key(u), key(v)].sort().join('|');
-          if (edges.has(k)) edges.get(k)!.count++;
-          else edges.set(k, { a: u, b: v, count: 1 });
-        }
-      }
-    }
-
-    worldUV(g, 0.8);
-    mesh.material = poolTile;
-    // Rebaixa o revestimento sob a lâmina, mantendo o contorno original do OBJ.
-    // A piscina principal permanece acima do piso-base; não inventa um corte no terreno.
-    const basin = g.clone();
-    const bp = basin.attributes.position;
-    const bottom = id === 3 ? 0.23 : 0.115;
-    for (let i = 0; i < bp.count; i++) {
-      if (Math.abs(bp.getY(i) - sourceTop) < 0.0001) bp.setY(i, bottom);
-    }
-    basin.computeVertexNormals();
-    mesh.geometry = basin;
-
-    const wg = new THREE.BufferGeometry();
-    wg.setAttribute('position', new THREE.Float32BufferAttribute(coords, 3));
-    wg.computeVertexNormals();
-
-    const water = new THREE.MeshStandardMaterial({
-      color: '#26999e',
-      roughness: 0.13,
-      metalness: 0.05,
-      transparent: true,
-      opacity: 0.48,
-      side: THREE.FrontSide,
-      depthWrite: false
-    });
-
-    water.onBeforeCompile = (shader) => {
-      shader.vertexShader = 'varying vec3 vWater;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvWater=position;');
-      shader.fragmentShader = 'varying vec3 vWater;\n' + shader.fragmentShader.replace(
-        '#include <normal_fragment_maps>',
-        `#include <normal_fragment_maps>
-        float a = sin(vWater.x * 17.0 + vWater.z * 9.0);
-        float b = cos(vWater.z * 23.0 - vWater.x * 6.0);
-        normal = normalize(normal + vec3(a * 0.07, b * 0.06, 0.0));`
-      ).replace(
-        '#include <color_fragment>',
-        `#include <color_fragment>
-        float ca = pow(max(0.0, sin(vWater.x * 13.0 + sin(vWater.z * 11.0)) + cos(vWater.z * 15.0 + sin(vWater.x * 7.0))) * 0.5, 5.0);
-        diffuseColor.rgb += vec3(0.13, 0.28, 0.3) * ca;`
-      );
-    };
-
-    const surface = new THREE.Mesh(wg, water);
-    surface.name = id === 3 ? 'Eau — hidro' : 'Água — piscina';
-    surface.renderOrder = 2;
-    scene.add(surface);
-
-    for (const edge of edges.values()) {
-      if (edge.count === 1) {
-        const a = edge.a.clone(), b = edge.b.clone();
-        // Parede interna independente do fundo rebaixado.
-        const delta = b.clone().sub(a);
-        const lining = box('Revestimento vertical da piscina', (a.x+b.x)/2,
-          (bottom+top)/2, (a.z+b.z)/2, 0.035, top-bottom, delta.length(), poolTile);
-        lining.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), delta.normalize());
-        worldUV(lining.geometry, 0.8);
-        a.y = b.y = top + 0.10;
-        const segments = id === 5 ? exposedBorderSegments(a,b) : [[a,b]];
-        for(const [start,end] of segments) {
-          const border = beam(start, end, id === 3 ? 0.30 : 0.27, coping);
-          border.scale.y = 0.30;
-        }
-      }
-    }
-  }
 
   // Luz subaquática da piscina (RGB / Cyan glow)
   const poolCenter = byId.get(5);
@@ -464,41 +336,14 @@ export function finishScene(
   const gourmetLights: { light: THREE.Light; onIntensity: number }[] = [];
   let gourmetPos: [number, number, number] = [-5.85, 2.4, -0.5];
 
-  const glowingGourmetLamps = new THREE.MeshStandardMaterial({
-    color: '#221a12',
-    emissive: '#ffeed6',
-    emissiveIntensity: 0.0,
-    roughness: 0.2
-  });
-
   if (gourmetMesh) {
     const gb = new THREE.Box3().setFromObject(gourmetMesh);
     const islandX = (gb.min.x + gb.max.x) / 2;
-    const islandZ = (gb.min.z + gb.max.z) / 2;
     gourmetPos = [islandX, 2.4, 0.0];
-
-    // Mantém as luminárias pendentes modernas como elemento estético
-    const pendenteXs = [islandX - 0.75, islandX + 0.75];
-    for (const px of pendenteXs) {
-      box('Cabo pendente gourmet', px, 2.38, islandZ, 0.012, 0.78, 0.012, metal);
-      box('Cúpula pendente gourmet', px, 1.95, islandZ, 0.16, 0.20, 0.16, metal);
-      box('Lente pendente gourmet', px, 1.84, islandZ, 0.13, 0.02, 0.13, glowingGourmetLamps);
-    }
   }
 
-  // 2. Spots decorativos embutidos no teto do salão (mantém as lentes emissivas)
-  const ceilingSpots = [
-    { x: -6.40, z: -4.00, label: 'Bancada pia / churrasqueira' },
-    { x: -8.60, z: -4.00, label: 'Refrigeradores / despensa' },
-    { x: -6.30, z: 1.80, label: 'Centro social salão' },
-    { x: -5.60, z: 3.60, label: 'Lounge piscina' },
-    { x: -9.20, z: 1.20, label: 'Fundo salão de estar' }
-  ];
-
-  for (const s of ceilingSpots) {
-    box('Aro spot embutido', s.x, 2.76, s.z, 0.14, 0.02, 0.14, metal);
-    box('Lente spot embutido', s.x, 2.75, s.z, 0.10, 0.015, 0.10, glowingGourmetLamps);
-  }
+  // Sem teto na vista recortada, omite spots e pendentes flutuantes.
+  // As fontes de luz abaixo continuam sincronizadas com o dispositivo.
 
   // 3. Apenas 2 luzes difusas amplas para o salão (substitui os 7 spots pesados por iluminação geral leve)
   const mainSalãoLight = new THREE.PointLight('#ffe8c6', 0, 11.0, 1.7);
@@ -611,8 +456,6 @@ export function finishScene(
         if (on) { if (!light.parent) scene.add(light); }
         else { if (light.parent) scene.remove(light); }
       });
-      glowingGourmetLamps.color.set(on ? '#fff6e4' : '#221a12');
-      glowingGourmetLamps.emissiveIntensity = on ? 4.0 : 0.0;
     },
     setPoolLight(on: boolean) {
       if (poolLight) {

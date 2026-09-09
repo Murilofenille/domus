@@ -16,12 +16,14 @@ export function rebuildPools(scene:THREE.Scene, meshes:THREE.Mesh[], tile:THREE.
   pool.geometry.computeBoundingBox();
   const top=pool.geometry.boundingBox!.max.y;
   const p=pool.geometry.attributes.position;
+  // Pequeno recuo lateral indicado no guia; valor aproximado na escala do OBJ.
+  const poolSide = hb.min.z + .40;
   const xs=new Set<number>([hb.min.x,hb.max.x,hb.min.x+.45,hb.max.x-.45]);
   const zs=new Set<number>([hb.min.z,hb.max.z,hb.min.z+.45,hb.max.z-.45]);
   for(let i=0;i<p.count;i+=3) {
     if([0,1,2].every(k=>Math.abs(p.getY(i+k)-top)<.0001)) {
       const tri:number[]=[];
-      for(let k=0;k<3;k++){const x=p.getX(i+k),z=p.getZ(i+k);tri.push(x,z);xs.add(x);zs.add(z);}
+      for(let k=0;k<3;k++){const x=p.getX(i+k),z=Math.max(p.getZ(i+k),poolSide);tri.push(x,z);xs.add(x);zs.add(z);}
       triangles.push(tri);
     }
   }
@@ -61,7 +63,10 @@ export function rebuildPools(scene:THREE.Scene, meshes:THREE.Mesh[], tile:THREE.
     const start=out.length/3;
     for(let i=group.start;i<group.start+group.count;i+=3){
       let polygons:Vertex[][]=[[0,1,2].map(k=>({p:new THREE.Vector3().fromBufferAttribute(fp,i+k),n:new THREE.Vector3().fromBufferAttribute(fn,i+k),uv:new THREE.Vector2(fu.getX(i+k),fu.getY(i+k))}))];
-      for(const c of cells.values()) {
+      for(const cell of cells.values()) {
+        // Retira também o piso sob a pedra externa: topo nivelado sem faces coplanares.
+        const width=cell.kind===5?.24:.05;
+        const c={x0:cell.x0-width,x1:cell.x1+width,z0:cell.z0-width,z1:cell.z1+width};
         const next:Vertex[][]=[];
         for(const poly of polygons){
           if(poly.every(v=>v.p.x<=c.x0)||poly.every(v=>v.p.x>=c.x1)||poly.every(v=>v.p.z<=c.z0)||poly.every(v=>v.p.z>=c.z1)){next.push(poly);continue;}
@@ -80,12 +85,24 @@ export function rebuildPools(scene:THREE.Scene, meshes:THREE.Mesh[], tile:THREE.
   result.setAttribute('position',new THREE.Float32BufferAttribute(out,3));result.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));result.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));result.computeBoundingSphere();floor.geometry=result;
   const shell:number[]=[],waterCoords:Record<number,number[]>={3:[],5:[]};
   function quad(target:number[],a:number[],b:number[],c:number[],d:number[]){target.push(...a,...b,...c,...a,...c,...d);}
+  const strips:{x0:number;x1:number;z0:number;z1:number;kind:number;rim:number}[]=[];
   function stone(c:Cell,side:number) {
-    const w=.24,h=.07;
-    const alongX=side>=2;
-    const m=new THREE.Mesh(new THREE.BoxGeometry(alongX?c.x1-c.x0:w,h,alongX?w:c.z1-c.z0),coping);
-    m.position.set(side===0?c.x0+w/2:side===1?c.x1-w/2:(c.x0+c.x1)/2,c.rim-h/2,side===2?c.z0+w/2:side===3?c.z1-w/2:(c.z0+c.z1)/2);
-    m.name=c.kind===3?'Borda hidro':'Borda piscina rente ao piso';m.castShadow=m.receiveShadow=true;scene.add(m);
+    const w=.24, extra=c.kind===3?.05:0;
+    if(c.kind===5) {
+      // Face interna da pedra alinhada à parede; largura inteira do lado do piso.
+      strips.push({kind:c.kind,rim:c.rim,
+        x0:side===0?c.x0-w:side===1?c.x1:c.x0-w,
+        x1:side===0?c.x0:side===1?c.x1+w:c.x1+w,
+        z0:side===2?c.z0-w:side===3?c.z1:c.z0-w,
+        z1:side===2?c.z0:side===3?c.z1+w:c.z1+w});
+      return;
+    }
+    // Estende as pontas para fechar encontros em L. A união abaixo remove sobreposições.
+    strips.push({kind:c.kind,rim:c.rim,
+      x0:side===0?c.x0-extra:side===1?c.x1-w:c.x0-w,
+      x1:side===0?c.x0+w:side===1?c.x1+extra:c.x1+w,
+      z0:side===2?c.z0-extra:side===3?c.z1-w:c.z0-w,
+      z1:side===2?c.z0+w:side===3?c.z1+extra:c.z1+w});
   }
   for(const [key,c]of cells){
     const [i,j]=key.split(',').map(Number);
@@ -99,6 +116,34 @@ export function rebuildPools(scene:THREE.Scene, meshes:THREE.Mesh[], tile:THREE.
       if(upper>c.bed+1e-6)quad(shell,[a[0],c.bed,a[1]],[b[0],c.bed,b[1]],[b[0],upper,b[1]],[a[0],upper,a[1]]);
       if(!n||(c.kind===3&&n.kind!==3))stone(c,s);
     });
+  }
+  // Uma malha contínua por borda: sem caixas coplanares piscando nos cantos.
+  for(const kind of [3,5]) {
+    const rectangles=strips.filter(s=>s.kind===kind);
+    const sx=[...new Set([...rectangles.flatMap(s=>[s.x0,s.x1]),...xx])].sort((a,b)=>a-b);
+    const sz=[...new Set([...rectangles.flatMap(s=>[s.z0,s.z1]),...zz])].sort((a,b)=>a-b);
+    const occupied=new Set<string>();
+    for(let i=0;i<sx.length-1;i++)for(let j=0;j<sz.length-1;j++) {
+      const x=(sx[i]+sx[i+1])/2,z=(sz[j]+sz[j+1])/2;
+      if(!rectangles.some(s=>x>s.x0&&x<s.x1&&z>s.z0&&z<s.z1))continue;
+      const inFootprint=kind===3
+        ? x>=hb.min.x-.05&&x<=hb.max.x+.05&&z>=hb.min.z-.05&&z<=hb.max.z+.05
+        : ![...cells.values()].some(c=>x>c.x0&&x<c.x1&&z>c.z0&&z<c.z1);
+      if(inFootprint)occupied.add(`${i},${j}`);
+    }
+    const vertices:number[]=[],y=kind===3?hydroRim:ground,bottom=y-.07;
+    for(const key of occupied){
+      const [i,j]=key.split(',').map(Number),a=sx[i],b=sx[i+1],c=sz[j],d=sz[j+1];
+      quad(vertices,[a,y,c],[a,y,d],[b,y,d],[b,y,c]);
+      quad(vertices,[a,bottom,c],[b,bottom,c],[b,bottom,d],[a,bottom,d]);
+      if(!occupied.has(`${i-1},${j}`))quad(vertices,[a,y,c],[a,bottom,c],[a,bottom,d],[a,y,d]);
+      if(!occupied.has(`${i+1},${j}`))quad(vertices,[b,y,d],[b,bottom,d],[b,bottom,c],[b,y,c]);
+      if(!occupied.has(`${i},${j-1}`))quad(vertices,[b,y,c],[b,bottom,c],[a,bottom,c],[a,y,c]);
+      if(!occupied.has(`${i},${j+1}`))quad(vertices,[a,y,d],[a,bottom,d],[b,bottom,d],[b,y,d]);
+    }
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));g.computeVertexNormals();
+    const border=new THREE.Mesh(g,coping);border.name=kind===3?'Borda hidro com avanço externo':'Borda piscina contínua rente ao piso';
+    border.castShadow=border.receiveShadow=true;scene.add(border);
   }
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(shell,3));geo.computeVertexNormals();
   const tex:number[]=[];const gp=geo.attributes.position,gn=geo.attributes.normal;

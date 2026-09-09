@@ -87,7 +87,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(38, container.clientWidth / container.clientHeight, 0.1, 150);
-    camera.position.set(-23, 17, 14);
+    camera.position.set(-17.25, 12.875, 10.5);
     cameraRef.current = camera;
 
     const controls = new OrbitControls(camera, canvas);
@@ -404,7 +404,7 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
 
     switch (preset) {
       case 'geral':
-        camera.position.set(-23, 17, 14);
+        camera.position.set(-17.25, 12.875, 10.5);
         controls.target.set(0, 0.5, 0);
         break;
       case 'piscina':

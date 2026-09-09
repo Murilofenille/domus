@@ -86,15 +86,16 @@ export function rebuildPools(scene:THREE.Scene, meshes:THREE.Mesh[], tile:THREE.
   const shell:number[]=[],waterCoords:Record<number,number[]>={3:[],5:[]};
   function quad(target:number[],a:number[],b:number[],c:number[],d:number[]){target.push(...a,...b,...c,...a,...c,...d);}
   const strips:{x0:number;x1:number;z0:number;z1:number;kind:number;rim:number}[]=[];
+  const poolEdges:{a:number[];b:number[]}[]=[];
   function stone(c:Cell,side:number) {
     const w=.24, extra=c.kind===3?.05:0;
     if(c.kind===5) {
       // Face interna da pedra alinhada à parede; largura inteira do lado do piso.
       strips.push({kind:c.kind,rim:c.rim,
-        x0:side===0?c.x0-w:side===1?c.x1:c.x0-w,
-        x1:side===0?c.x0:side===1?c.x1+w:c.x1+w,
-        z0:side===2?c.z0-w:side===3?c.z1:c.z0-w,
-        z1:side===2?c.z0:side===3?c.z1+w:c.z1+w});
+        x0:side===0?c.x0-w:side===1?c.x1-.03:c.x0-w,
+        x1:side===0?c.x0+.03:side===1?c.x1+w:c.x1+w,
+        z0:side===2?c.z0-w:side===3?c.z1-.03:c.z0-w,
+        z1:side===2?c.z0+.03:side===3?c.z1+w:c.z1+w});
       return;
     }
     // Estende as pontas para fechar encontros em L. A união abaixo remove sobreposições.
@@ -114,7 +115,10 @@ export function rebuildPools(scene:THREE.Scene, meshes:THREE.Mesh[], tile:THREE.
     edges.forEach(([a,b],s)=>{
       const n=neighbours[s],upper=!n?c.rim:n.kind!==c.kind?Math.max(c.rim,n.rim):n.bed;
       if(upper>c.bed+1e-6)quad(shell,[a[0],c.bed,a[1]],[b[0],c.bed,b[1]],[b[0],upper,b[1]],[a[0],upper,a[1]]);
-      if(!n||(c.kind===3&&n.kind!==3))stone(c,s);
+      if(!n||(c.kind===3&&n.kind!==3)) {
+        stone(c,s);
+        if(c.kind===5)poolEdges.push({a,b});
+      }
     });
   }
   // Uma malha contínua por borda: sem caixas coplanares piscando nos cantos.
@@ -128,7 +132,11 @@ export function rebuildPools(scene:THREE.Scene, meshes:THREE.Mesh[], tile:THREE.
       if(!rectangles.some(s=>x>s.x0&&x<s.x1&&z>s.z0&&z<s.z1))continue;
       const inFootprint=kind===3
         ? x>=hb.min.x-.05&&x<=hb.max.x+.05&&z>=hb.min.z-.05&&z<=hb.max.z+.05
-        : ![...cells.values()].some(c=>x>c.x0&&x<c.x1&&z>c.z0&&z<c.z1);
+        : ![...cells.values()].some(c=>x>c.x0&&x<c.x1&&z>c.z0&&z<c.z1)||poolEdges.some(({a,b})=>{
+          const dx=b[0]-a[0],dz=b[1]-a[1],len=dx*dx+dz*dz;
+          const t=THREE.MathUtils.clamp(((x-a[0])*dx+(z-a[1])*dz)/len,0,1);
+          return Math.hypot(x-a[0]-t*dx,z-a[1]-t*dz)<=.03001;
+        });
       if(inFootprint)occupied.add(`${i},${j}`);
     }
     const vertices:number[]=[],y=(kind===3?hydroRim:ground)+.008,bottom=y-.074;

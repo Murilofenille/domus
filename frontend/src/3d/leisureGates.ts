@@ -13,7 +13,7 @@ export function refineGates(scene:THREE.Scene,meshes:THREE.Mesh[]) {
     const b=new THREE.Box3().setFromObject(source),width=b.max.z-b.min.z,height=b.max.y-b.min.y;
     const group=new THREE.Group();group.name=source.userData.id===22?'Portão social detalhado':'Portão principal detalhado';
     // A face do portão fica à frente da alvenaria, sem superfícies coincidentes.
-    group.position.set(Math.max(b.max.x,wallFace)+.018,b.min.y,(b.min.z+b.max.z)/2);
+    group.position.set(Number.isFinite(wallFace)?wallFace-.05:b.max.x-.05,b.min.y,(b.min.z+b.max.z)/2);
     const part=(name:string,x:number,y:number,z:number,d:number,h:number,w:number,mat:THREE.Material,round=false)=>{
       const g=round?new RoundedBoxGeometry(d,h,w,2,Math.min(.008,d/4,h/4,w/4)):new THREE.BoxGeometry(d,h,w);
       const m=new THREE.Mesh(g,mat);m.name=name;m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;group.add(m);return m;
@@ -33,7 +33,7 @@ export function refineGates(scene:THREE.Scene,meshes:THREE.Mesh[]) {
       const rows=4,base=.105,panelHeight=(height-jamb-base)/rows;
       for(let row=0;row<rows;row++)part('Chapa fechada acetinada',.083,base+panelHeight*(row+.5),z,.068,panelHeight-.012,usable,paint,true);
       for(const dz of [-usable/2+.02,usable/2-.02])part('Perfil vertical da folha',.095,(height+.04)/2,z+dz,.075,height-.12,.038,frame,true);
-      if(leaf===0||leaves===1) {
+      if(leaves===1) {
         const handleZ=z+usable/2-.15,handleY=height*.43;
         for(const dy of [-.14,.14])part('Suporte puxador',.152,handleY+dy,handleZ,.08,.033,.038,frame,true);
         part('Puxador vertical',.197,handleY,handleZ,.036,.37,.036,hardware,true);

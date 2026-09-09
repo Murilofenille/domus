@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import './LeisureDashboard.mobile.css';
 import {
   Play,
   Pause,

@@ -1,5 +1,5 @@
 /* Home apenas: mantém o canvas 3D e os layouts grandes inalterados. */
-@media (max-width: 960px) {
+@media (max-width: 960px), (orientation: landscape) and (max-height: 600px) and (max-width: 1100px) {
   .leisure-dashboard-container {
     width: 100%;
     height: 100vh;
@@ -21,7 +21,7 @@
   .leisure-dashboard-container .leisure-idle-actions { flex-wrap: wrap; justify-content: center; }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 600px), (orientation: landscape) and (max-height: 600px) and (max-width: 1100px) {
   .leisure-dashboard-container .leisure-spotify-card,
   .leisure-dashboard-container .leisure-shortcuts-card {
     min-width: 0;
@@ -79,4 +79,16 @@
   .leisure-dashboard-container .leisure-playlists-modal { padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); height: 100dvh; }
   .leisure-dashboard-container .leisure-playlists-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .leisure-dashboard-container .leisure-modal-close { min-width: 44px; min-height: 44px; }
+}
+
+@media (orientation: landscape) and (max-height: 600px) and (min-width: 640px) and (max-width: 1100px) {
+  .leisure-dashboard-container .leisure-grid { grid-template-columns: minmax(240px, .85fr) minmax(0, 1.15fr); gap: 12px; }
+  .leisure-dashboard-container .leisure-spotify-card,
+  .leisure-dashboard-container .leisure-shortcuts-card { padding: 14px; gap: 10px; }
+  .leisure-dashboard-container .leisure-album-wrapper { max-width: 120px; }
+  .leisure-dashboard-container .leisure-weather-card { min-height: 100px; padding: 12px 16px; }
+  .leisure-dashboard-container .weather-vector-icon { width: 40px; height: 40px; }
+  .leisure-dashboard-container .quick-access-big-card { min-height: 72px; padding: 10px; }
+  .leisure-dashboard-container .leisure-bottom-bar { margin-top: 12px; flex-wrap: nowrap; }
+  .leisure-dashboard-container .leisure-bottom-actions { width: auto; }
 }

@@ -313,25 +313,34 @@ export const LeisureModel3D: React.FC<LeisureModel3DProps> = ({
     };
     renderLoop();
 
-    // Redimensionamento
+    // Sincroniza com o tamanho real do canvas, inclusive mudanças de dvh após rotação.
     const handleResize = () => {
       if (!container || !camera || !renderer) return;
       const w = container.clientWidth;
       const h = container.clientHeight;
+      if (w <= 0 || h <= 0) return;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setPixelRatio(isInteracting ? 1.0 : targetPixelRatio);
       renderer.setSize(w, h, false);
+      // setPixelRatio pode gravar dimensões inline em pixels; mantém o CSS fluido.
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
       updatePins();
       requestRender();
     };
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(container);
     window.addEventListener('resize', handleResize);
+    window.visualViewport?.addEventListener('resize', handleResize);
     handleResize();
 
     return () => {
       cancelAnimationFrame(animId);
       if (settleTimeout !== null) clearTimeout(settleTimeout);
       window.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       controls.removeEventListener('start', onStart);
       controls.removeEventListener('end', onEnd);
       controls.dispose();
